@@ -159,7 +159,8 @@ def logout():
 def admin():
     conn = get_db()
     cur = conn.cursor()
-    exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
+    cur.execute("SELECT * FROM exams ORDER BY id DESC")
+    exams = cur.fetchall()
     conn.close()
     return render_template("admin.html", exams=exams, user=session["user"])
 
@@ -196,7 +197,7 @@ def add_student():
         course = request.form["course"]
         phone = request.form["phone"]
 
-        photo_path = save_upload("photo")  # uses your existing function
+        photo_path = save_upload("photo")
 
         conn = get_db()
         cur = conn.cursor()
@@ -292,8 +293,8 @@ def add_question():
         cur = conn.cursor()
         cur.execute(
             "SELECT * FROM questions WHERE exam_id=%s ORDER BY id", (selected_exam,)
-        ).fetchall()
-        question = cur.fetchall()
+        )
+        questions = cur.fetchall()
     conn.close()
     return render_template("add_question.html", exams=exams, questions=questions,
                            selected_exam=int(selected_exam) if selected_exam else None,
@@ -309,7 +310,7 @@ def delete_question(qid):
     conn.commit()
     conn.close()
     exam_id = request.form.get("exam_id")
-    return redirect(f"/add_question?sexam_id={exam_id}")
+    return redirect(f"/add_question?exam_id={exam_id}")
 
 
 # ── VIEW RESPONSES & GRADING ───────────────────────────────────────────────
@@ -346,7 +347,7 @@ def view_responses():
 
         if selected_student:
             cur = conn.cursor()
-             cur.execute("""
+            cur.execute("""
                 SELECT r.id as resp_id, r.student, q.question, q.question_image,
                        q.type, q.option_a, q.option_b, q.option_c, q.option_d,
                        q.option_a_image, q.option_b_image, q.option_c_image, q.option_d_image,
@@ -381,7 +382,7 @@ def grade():
     cur.execute("UPDATE responses SET marks=%s WHERE id=%s", (marks, resp_id))
     conn.commit()
     conn.close()
-    return redirect(f"/view_responses%sexam_id={exam_id}&student={student}")
+    return redirect(f"/view_responses?exam_id={exam_id}&student={student}")
 
 
 @app.route("/publish_results/<int:exam_id>", methods=["POST"])
@@ -529,5 +530,3 @@ def submit(exam_id):
     conn.commit()
     conn.close()
     return render_template("result.html", user=session["user"])
-
-
