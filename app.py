@@ -7,7 +7,7 @@ from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.secret_key = "secret_key_change_in_production"
-init_db()
+
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -118,9 +118,11 @@ def login_required(role=None):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+    
 
 
 # ── LOGIN ──────────────────────────────────────────────────────────────────
+init_db()
 
 @app.route("/", methods=["GET", "POST"])
 def login():
