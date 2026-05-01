@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}My Exams{% endblock %}
+{% block extra_head %}
+<style>
+.tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+.tab-link {
+  padding: .75rem 1.5rem; font-size: .85rem; font-weight: 600;
+  color: var(--muted); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .18s;
+}
+.tab-link:hover { color: var(--text); }
+.tab-link.on { color: var(--accent); border-color: var(--accent); }
+
+.section-label {
+  font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--muted2); margin-bottom: .65rem; margin-top: 1.25rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.exam-card {
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 1.15rem 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: .65rem;
+  transition: all .18s;
+  text-decoration: none;
+}
+.exam-card:hover:not(.done) { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 24px rgba(79,142,247,.12); }
+.exam-card.done { opacity: .6; cursor: default; }
+.exam-icon {
+  width: 42px; height: 42px; border-radius: 11px;
+  background: linear-gradient(135deg, rgba(79,142,247,.15), rgba(124,95,247,.15));
+  border: 1px solid rgba(79,142,247,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.exam-card.done .exam-icon { background: rgba(255,255,255,.04); border-color: var(--border); }
+.exam-body { flex: 1; }
+.exam-title-txt { font-size: .95rem; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+.exam-detail { font-size: .78rem; color: var(--muted); }
+.exam-cta { flex-shrink: 0; }
+
+.empty-state {
+  text-align: center; padding: 3.5rem 2rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .5; }
+.empty-state p { color: var(--muted); font-size: .875rem; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>Student Portal</h1>
+    <p>Welcome back, <strong>{{ user }}</strong>.</p>
+  </div>
+
+  
+  {% set available = [] %}
+  {% set done_exams = [] %}
+  {% for e in exams %}
+    {% if e['id'] in submitted_ids %}{% set _ = done_exams.append(e) %}{% else %}{% set _ = available.append(e) %}{% endif %}
+  {% endfor %}
+
+  {% if available %}
+  <div class="section-label">Available to attempt</div>
+  {% for e in available %}
+  <a class="exam-card" href="/instructions/{{ e['id'] }}">
+    <div class="exam-icon">📝</div>
+    <div class="exam-body">
+      <div class="exam-title-txt">{{ e['title'] }}</div>
+      <div class="exam-detail">⏱ {{ e['duration'] // 60 }}m {{ e['duration'] % 60 }}s</div>
+    </div>
+    <div class="exam-cta">
+      <span class="btn btn-primary btn-sm">Start →</span>
+    </div>
+  </a>
+  {% endfor %}
+  {% endif %}
+
+  {% if done_exams %}
+  <div class="section-label">Submitted</div>
+  {% for e in done_exams %}
+  <div class="exam-card done">
+    <div class="exam-icon">✓</div>
+    <div class="exam-body">
+      <div class="exam-title-txt">{{ e['title'] }}</div>
+      <div class="exam-detail">Submitted — check Results tab for score</div>
+    </div>
+    <span style="font-size:.78rem;color:var(--success);font-weight:600">Submitted ✓</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if not available and not done_exams %}
+  <div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <p>No exams are available right now. Check back later.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

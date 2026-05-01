@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Test Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #0f1117; --surface: #181c27; --border: #252a38; --text: #e8eaf0; --muted: #7a8099; --accent: #4f8ef7; --danger: #f87171; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-box { width: 100%; max-width: 380px; padding: 1.5rem; }
+  .logo { text-align: center; margin-bottom: 2rem; }
+  .logo h1 { font-size: 1.6rem; font-weight: 600; }
+  .logo h1 span { color: var(--accent); }
+  .logo p { color: var(--muted); font-size: .875rem; margin-top: .25rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; }
+  .form-group { margin-bottom: 1.1rem; }
+  label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: .4rem; font-weight: 500; letter-spacing: .03em; text-transform: uppercase; }
+  input { width: 100%; padding: .65rem .9rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-family: inherit; font-size: .9rem; outline: none; transition: border-color .15s; }
+  input:focus { border-color: var(--accent); }
+  .btn { width: 100%; padding: .7rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: .9rem; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: .5rem; transition: background .15s; }
+  .btn:hover { background: #3a7de0; }
+  .alert { padding: .65rem .9rem; border-radius: 7px; font-size: .85rem; margin-bottom: 1rem; background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); color: var(--danger); }
+  .hint { margin-top: 1.25rem; padding: .75rem; background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 7px; font-size: .8rem; color: var(--muted); }
+  .hint strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="login-box">
+  <div class="logo">
+    <h1>Test<span>Portal</span></h1>
+    <p>Sign in to continue</p>
+  </div>
+  <div class="card">
+    {% if error %}
+    <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input name="username" autocomplete="username" autofocus>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input name="password" type="password" autocomplete="current-password">
+      </div>
+      <button class="btn" type="submit">Sign In</button>
+    </form>
+      </div>
+</div>
+</body>
+</html>

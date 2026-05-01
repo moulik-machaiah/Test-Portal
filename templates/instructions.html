@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Instructions{% endblock %}
+{% block extra_head %}
+<style>
+.instr-wrap { max-width: 580px; margin: 0 auto; }
+.instr-hero {
+  text-align: center; padding: 2rem 0 1.5rem;
+}
+.instr-hero-icon { font-size: 3rem; margin-bottom: .75rem; }
+.instr-hero h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: .35rem; }
+.instr-hero p { color: var(--muted); font-size: .875rem; }
+
+.rules-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+.rule-item { display: flex; gap: .9rem; align-items: flex-start; padding: .7rem 0; border-bottom: 1px solid var(--border); }
+.rule-item:last-child { border: none; padding-bottom: 0; }
+.rule-emoji { font-size: 1.1rem; flex-shrink: 0; margin-top: .1rem; }
+.rule-text { font-size: .875rem; color: #c8cbda; line-height: 1.55; }
+.rule-text strong { color: var(--text); }
+
+.meta-row { display: flex; gap: .75rem; margin-bottom: 1.5rem; }
+.meta-chip {
+  flex: 1; padding: .9rem; text-align: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+}
+.meta-chip-val { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.meta-chip-lbl { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: .2rem; }
+
+.instr-actions { display: flex; gap: .75rem; }
+.instr-actions .btn { flex: 1; justify-content: center; padding: .75rem; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+<div class="instr-wrap">
+
+  <div class="instr-hero">
+    <div class="instr-hero-icon">📋</div>
+    <h2>{{ exam['title'] }}</h2>
+    <p>Read the instructions carefully before starting.</p>
+  </div>
+
+  <div class="meta-row">
+    <div class="meta-chip">
+      <div class="meta-chip-val">{{ exam['duration'] // 60 }}m {{ exam['duration'] % 60 }}s</div>
+      <div class="meta-chip-lbl">Duration</div>
+    </div>
+    <div class="meta-chip">
+      <div class="meta-chip-val">1×</div>
+      <div class="meta-chip-lbl">Attempt</div>
+    </div>
+    <div class="meta-chip">
+      <div class="meta-chip-val">Auto</div>
+      <div class="meta-chip-lbl">Submit on timeout</div>
+    </div>
+  </div>
+
+  <div class="rules-card">
+    <div class="rule-item">
+      <span class="rule-emoji">⏱</span>
+      <div class="rule-text">The timer starts the moment you click <strong>Start Exam</strong> and <strong>cannot be paused</strong>. The exam auto-submits when time runs out.</div>
+    </div>
+    <div class="rule-item">
+      <span class="rule-emoji">🚫</span>
+      <div class="rule-text"><strong>Do not switch tabs</strong> or minimize the browser. You get <strong>one warning</strong> — a second violation auto-submits your exam immediately.</div>
+    </div>
+    <div class="rule-item">
+      <span class="rule-emoji">📋</span>
+      <div class="rule-text">Copy-paste is disabled. MCQ answers are auto-graded. Subjective answers are reviewed by an admin.</div>
+    </div>
+    <div class="rule-item">
+      <span class="rule-emoji">✅</span>
+      <div class="rule-text">You can navigate freely between questions using the sidebar or the Prev/Next buttons. Use the <strong>question palette</strong> on the right to track which ones you've answered.</div>
+    </div>
+    <div class="rule-item">
+      <span class="rule-emoji">🔒</span>
+      <div class="rule-text">Once submitted, <strong>you cannot go back</strong>. Make sure you've answered everything before hitting Submit.</div>
+    </div>
+  </div>
+
+  <div class="instr-actions">
+    <a class="btn btn-secondary" href="/student/exams">← Back</a>
+    <a class="btn btn-primary" href="/exam/{{ exam['id'] }}">I Understand — Start Exam →</a>
+  </div>
+
+</div>
+</div>
+{% endblock %}

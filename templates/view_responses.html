@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}View Responses{% endblock %}
+{% block extra_head %}
+<style>
+  .step-row { display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; }
+  .step-row .form-group { flex:1; min-width:200px; margin:0; }
+  .resp-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; margin-bottom:1rem; }
+  .resp-card .q-num { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; display:flex; align-items:center; gap:.5rem; }
+  .resp-card .q-body { font-size:.95rem; margin-bottom:.75rem; }
+  .q-img { max-width:100%; max-height:300px; border-radius:6px; margin:.4rem 0; border:1px solid var(--border); }
+  .answer-box { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:.65rem .9rem; font-size:.9rem; margin-bottom:.75rem; white-space:pre-wrap; }
+  .grade-row { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+  .marks-input { width:80px; padding:.5rem .75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:7px; font-family:inherit; font-size:.9rem; outline:none; }
+  .marks-input:focus { border-color:var(--accent); }
+  .summary-bar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  .summary-score { font-size:1.5rem; font-weight:700; color:var(--accent); }
+  .options-preview { display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .75rem; }
+  .opt-chip { font-size:.8rem; padding:.3rem .6rem; border-radius:4px; background:var(--border); display:inline-flex; align-items:center; gap:.3rem; }
+  .opt-chip.correct { background:color-mix(in srgb,var(--success) 20%,transparent); color:var(--success); }
+  .opt-chip.student-ans-correct { background:color-mix(in srgb,var(--success) 20%,transparent); color:var(--success); }
+  .opt-chip.student-ans-wrong { background:color-mix(in srgb,var(--danger) 20%,transparent); color:var(--danger); }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>Student Responses</h1>
+    <p>Select an exam, then pick a student to review and grade.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Select Exam</div>
+    <form method="GET" action="/view_responses">
+      <div class="step-row">
+        <div class="form-group">
+          <label>Exam</label>
+          <select name="exam_id" onchange="this.form.submit()">
+            <option value="">— choose an exam —</option>
+            {% for e in exams %}
+            <option value="{{ e['id'] }}" {% if selected_exam_id == e['id'] %}selected{% endif %}>#{{ e['id'] }} — {{ e['title'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if selected_exam_id and exam_obj %}
+
+  <div class="card">
+    <div class="card-title">Select Student <span style="font-weight:400;color:var(--muted);font-size:.85rem">({{ students|length }} submitted)</span></div>
+    {% if students %}
+    <form method="GET" action="/view_responses">
+      <input type="hidden" name="exam_id" value="{{ selected_exam_id }}">
+      <div class="step-row">
+        <div class="form-group">
+          <label>Student</label>
+          <select name="student" onchange="this.form.submit()">
+            <option value="">— choose a student —</option>
+            {% for s in students %}
+            <option value="{{ s['student'] }}" {% if selected_student == s['student'] %}selected{% endif %}>{{ s['student'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </form>
+    {% else %}
+    <p style="color:var(--muted);font-size:.875rem">No students have submitted this exam yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="summary-bar">
+    <div>
+      <strong>{{ exam_obj['title'] }}</strong>
+      {% if exam_obj['results_published'] %}
+        <span style="color:var(--success);font-size:.8rem;margin-left:.75rem">✓ Results published</span>
+      {% else %}
+        <span style="color:var(--muted);font-size:.8rem;margin-left:.75rem">Results not published</span>
+      {% endif %}
+    </div>
+    {% if not exam_obj['results_published'] %}
+    <form method="POST" action="/publish_results/{{ selected_exam_id }}">
+      <button class="btn btn-success" type="submit" onclick="return confirm('Publish results? All students will see their scores.')">Publish Results</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if selected_student and student_data %}
+
+  {% set total_earned = namespace(v=0) %}
+  {% set total_possible = namespace(v=0) %}
+  {% for row in student_data %}
+    {% set total_earned.v = total_earned.v + row['marks'] %}
+    {% set total_possible.v = total_possible.v + row['max_marks'] %}
+  {% endfor %}
+
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem">
+    <div class="summary-score">{{ total_earned.v }} / {{ total_possible.v }}</div>
+    <div style="color:var(--muted);font-size:.875rem">current score for <strong style="color:var(--text)">{{ selected_student }}</strong></div>
+  </div>
+
+  {% for row in student_data %}
+  <div class="resp-card">
+    <div class="q-num">
+      Q{{ loop.index }}
+      <span class="chip {% if row['type'] == 'mcq' %}chip-mcq{% else %}chip-subj{% endif %}">{{ row['type'] }}</span>
+      <span>{{ row['max_marks'] }} mark{% if row['max_marks'] != 1 %}s{% endif %}</span>
+    </div>
+
+    <div class="q-body">
+      {% if row['question'] %}{{ row['question'] }}{% endif %}
+      {% if row['question_image'] %}<br><img class="q-img" src="/static/{{ row['question_image'] }}" alt="Question">{% endif %}
+    </div>
+
+    {% if row['type'] == 'mcq' %}
+    <div class="options-preview">
+      {% for key, text, img in [('A', row['option_a'], row['option_a_image']),
+                                 ('B', row['option_b'], row['option_b_image']),
+                                 ('C', row['option_c'], row['option_c_image']),
+                                 ('D', row['option_d'], row['option_d_image'])] %}
+      {% if text or img %}
+      <span class="opt-chip
+        {% if row['answer'] == key and key == row['correct_answer'] %}student-ans-correct
+        {% elif row['answer'] == key %}student-ans-wrong
+        {% elif key == row['correct_answer'] %}correct
+        {% endif %}">
+        <strong>{{ key }}:</strong>
+        {% if text %}{{ text }}{% endif %}
+        {% if img %}<img src="/static/{{ img }}" style="height:18px;vertical-align:middle">{% endif %}
+        {% if key == row['correct_answer'] %} ✓{% endif %}
+        {% if row['answer'] == key %} ← student{% endif %}
+      </span>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="grade-row">
+      <span style="font-size:.85rem;color:var(--muted)">Auto-graded:</span>
+      <strong style="color:var(--accent)">{{ row['marks'] }} / {{ row['max_marks'] }}</strong>
+    </div>
+
+    {% else %}
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">Student's answer:</div>
+    <div class="answer-box">{{ row['answer'] if row['answer'] else '— no answer —' }}</div>
+    <form method="POST" action="/grade">
+      <input type="hidden" name="resp_id" value="{{ row['resp_id'] }}">
+      <input type="hidden" name="exam_id" value="{{ selected_exam_id }}">
+      <input type="hidden" name="student" value="{{ selected_student }}">
+      <div class="grade-row">
+        <label style="font-size:.85rem;color:var(--muted);text-transform:none;letter-spacing:0;margin:0">Assign marks:</label>
+        <input class="marks-input" type="number" name="marks" value="{{ row['marks'] }}" min="0" max="{{ row['max_marks'] }}">
+        <span style="font-size:.85rem;color:var(--muted)">/ {{ row['max_marks'] }}</span>
+        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% elif selected_student %}
+  <div class="card" style="text-align:center;padding:2rem">
+    <p style="color:var(--muted)">No responses found for this student.</p>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}

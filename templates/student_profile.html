@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>My Profile</h1>
+    <p>Your personal details</p>
+  </div>
+
+  <div class="card" style="display:flex;gap:2rem;align-items:center">
+
+    <!-- Profile Photo -->
+    <div>
+      <img src="{{ url_for('static', filename=user_data['photo']) if user_data['photo'] else url_for('static', filename='uploads/default.png') }}" 
+     alt="Profile"
+     style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+    </div>
+
+    <!-- Details -->
+    <div style="flex:1">
+      <div style="margin-bottom:.6rem">
+        <strong>Name:</strong> {{ user_data['name'] }}
+      </div>
+
+      <div style="margin-bottom:.6rem">
+        <strong>Roll No:</strong> {{ user_data['roll'] }}
+      </div>
+
+      <div style="margin-bottom:.6rem">
+        <strong>Course / Branch:</strong> {{ user_data['course'] }}
+      </div>
+
+      <div style="margin-bottom:.6rem">
+        <strong>Phone:</strong> {{ user_data['phone'] }}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

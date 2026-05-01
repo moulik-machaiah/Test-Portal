@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Add Questions{% endblock %}
+{% block extra_head %}
+<style>
+  .q-row { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; padding:.75rem; background:var(--bg); border-radius:7px; margin-bottom:.5rem; }
+  .q-text { flex:1; }
+  .q-text .q-question { font-size:.9rem; margin-bottom:.25rem; }
+  .q-meta { font-size:.75rem; color:var(--muted); display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+
+  /* Image upload field */
+  .img-upload-wrap { margin-top:.4rem; }
+  .img-upload-label {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.35rem .75rem; border:1px dashed var(--border); border-radius:6px;
+    font-size:.8rem; color:var(--muted); cursor:pointer; transition:all .15s;
+  }
+  .img-upload-label:hover { border-color:var(--accent); color:var(--accent); }
+  .img-upload-label input[type=file] { display:none; }
+  .img-preview { display:none; margin-top:.5rem; max-height:120px; border-radius:6px; border:1px solid var(--border); }
+
+  .field-with-image { position:relative; }
+  .or-divider { font-size:.75rem; color:var(--muted); margin:.35rem 0; }
+
+  .q-thumb { max-height:40px; border-radius:4px; vertical-align:middle; margin-left:.4rem; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>Add Questions</h1>
+    <p>You can type the question/options, upload an image, or both.</p>
+  </div>
+
+  {% if success %}<div class="alert alert-success">✓ Question added successfully.</div>{% endif %}
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+  <!-- Exam selector -->
+  <div class="card">
+    <div class="card-title">Select Exam</div>
+    <form method="GET" action="/add_question" style="display:flex;gap:.75rem;align-items:flex-end">
+      <div class="form-group" style="flex:1;margin:0">
+        <label>Exam</label>
+        <select name="exam_id" required>
+          <option value="">— choose —</option>
+          {% for e in exams %}
+          <option value="{{ e['id'] }}" {% if selected_exam == e['id'] %}selected{% endif %}>#{{ e['id'] }} — {{ e['title'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-secondary" type="submit">Load</button>
+    </form>
+  </div>
+
+  {% if selected_exam %}
+
+  <!-- Add question -->
+  <div class="card">
+    <div class="card-title">New Question</div>
+    <form method="POST" action="/add_question" enctype="multipart/form-data" id="qform">
+      <input type="hidden" name="exam_id" value="{{ selected_exam }}">
+
+      <!-- Question text + image -->
+      <div class="form-group">
+        <label>Question Text</label>
+        <textarea name="question" placeholder="Type the question here (or leave blank if uploading image)..."></textarea>
+        <div class="or-divider">and/or upload an image:</div>
+        <div class="img-upload-wrap">
+          <label class="img-upload-label">
+            📷 Upload question image
+            <input type="file" name="question_image" accept="image/*" onchange="previewImg(this,'prev_q')">
+          </label>
+          <br><img id="prev_q" class="img-preview">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Question Type *</label>
+          <select name="type" id="qtype" onchange="toggleMCQ(this.value)" required>
+            <option value="mcq">MCQ</option>
+            <option value="subjective">Subjective</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Marks *</label>
+          <input type="number" name="marks" value="1" min="1" required>
+        </div>
+      </div>
+
+      <!-- MCQ fields -->
+      <div id="mcqFields">
+        <hr>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Fill in options — you can type text, upload an image, or both for each option.</p>
+
+        {% for letter, prev_id in [('A','prev_a'),('B','prev_b'),('C','prev_c'),('D','prev_d')] %}
+        <div class="form-group">
+          <label>Option {{ letter }}</label>
+          <input type="text" name="option_{{ letter|lower }}" placeholder="Option {{ letter }} text (optional)">
+          <div class="img-upload-wrap" style="margin-top:.3rem">
+            <label class="img-upload-label">
+              📷 Image for option {{ letter }}
+              <input type="file" name="option_{{ letter|lower }}_image" accept="image/*" onchange="previewImg(this,'{{ prev_id }}')">
+            </label>
+            <br><img id="{{ prev_id }}" class="img-preview">
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="form-group">
+          <label>Correct Answer Key *</label>
+          <select name="correct">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Subjective fields -->
+      <div id="subjFields" style="display:none">
+        <hr>
+        <div class="form-group">
+          <label>Model Answer (optional, for admin reference)</label>
+          <textarea name="correct" placeholder="Expected answer or marking guide..."></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">+ Add Question</button>
+    </form>
+  </div>
+
+  <!-- Questions list -->
+  <div class="card">
+    <div class="card-title">Questions in This Exam <span style="font-size:.8rem;font-weight:400;color:var(--muted)">({{ questions|length }} total)</span></div>
+    {% if questions %}
+    {% for q in questions %}
+    <div class="q-row">
+      <div class="q-text">
+        <div class="q-question">
+          {{ loop.index }}. {% if q['question'] %}{{ q['question'] }}{% endif %}
+          {% if q['question_image'] %}<img class="q-thumb" src="/static/{{ q['question_image'] }}" alt="img">{% endif %}
+        </div>
+        <div class="q-meta">
+          <span class="chip {% if q['type'] == 'mcq' %}chip-mcq{% else %}chip-subj{% endif %}">{{ q['type'] }}</span>
+          <span>{{ q['marks'] }} mark{% if q['marks'] != 1 %}s{% endif %}</span>
+          {% if q['type'] == 'mcq' %}
+          <span>Correct: <strong style="color:var(--success)">{{ q['correct_answer'] }}</strong></span>
+          {% endif %}
+        </div>
+      </div>
+      <form method="POST" action="/delete_question/{{ q['id'] }}" style="flex-shrink:0">
+        <input type="hidden" name="exam_id" value="{{ selected_exam }}">
+        <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Delete this question?')">Delete</button>
+      </form>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--muted);font-size:.875rem">No questions yet.</p>
+    {% endif %}
+  </div>
+
+  {% endif %}
+</div>
+
+<script>
+function toggleMCQ(val) {
+  document.getElementById('mcqFields').style.display = val === 'mcq' ? 'block' : 'none';
+  document.getElementById('subjFields').style.display = val === 'subjective' ? 'block' : 'none';
+}
+
+function previewImg(input, previewId) {
+  const prev = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { prev.src = e.target.result; prev.style.display = 'block'; };
+    reader.readAsDataURL(input.files[0]);
+  } else {
+    prev.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

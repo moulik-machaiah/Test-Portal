@@ -1,0 +1,876 @@
+{% extends "base.html" %}
+{% block title %}{{ exam['title'] }}{% endblock %}
+{% block extra_head %}
+<style>
+/* Full-screen exam — hide nav, lock body */
+body { overflow: hidden; height: 100vh; }
+nav { display: none; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+  height: 54px;
+  background: #0b0d14;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.5rem;
+}
+.topbar-brand { display: flex; align-items: center; gap: .6rem; }
+.topbar-brand-icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: linear-gradient(135deg,#4f8ef7,#7c5ff7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem;
+}
+.topbar-title { font-size: .9rem; font-weight: 600; color: #e8eaf0; }
+.topbar-sub { font-size: .72rem; color: #7a8099; margin-top: .05rem; }
+
+.timer-capsule {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .3rem .85rem;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 20px;
+}
+.timer-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+.timer-dot.warn { background: #fbbf24; }
+.timer-dot.crit { background: #f87171; animation: pulse-dot .6s infinite; }
+.timer-txt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .95rem; font-weight: 500; color: #e8eaf0;
+  min-width: 52px; letter-spacing: .03em;
+}
+.timer-txt.warn { color: #fbbf24; }
+.timer-txt.crit { color: #f87171; }
+
+/* ── ROOT LAYOUT ── */
+.exam-root {
+  display: flex;
+  height: 100vh;
+  padding-top: 54px;
+}
+
+/* ── QUESTION PANEL (left/main) ── */
+.q-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #0b0d14;
+  overflow: hidden;
+}
+
+/* thin progress bar */
+.prog-bar { height: 2px; background: rgba(255,255,255,.05); flex-shrink: 0; }
+.prog-fill { height: 100%; background: linear-gradient(90deg,#4f8ef7,#7c5ff7); transition: width .5s cubic-bezier(.4,0,.2,1); }
+
+/* scrollable question area */
+.q-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 3rem 4rem 2rem;
+}
+.q-area::-webkit-scrollbar { width: 4px; }
+.q-area::-webkit-scrollbar-track { background: transparent; }
+.q-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+
+/* Single question slide */
+.q-slide { display: none; max-width: 680px; animation: slideIn .22s ease; }
+.q-slide.active { display: block; }
+@keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+.q-meta-row { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.25rem; }
+.q-num-badge {
+  font-size: .68rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  padding: .25rem .65rem; border-radius: 6px;
+  background: rgba(79,142,247,.15); color: #4f8ef7;
+  letter-spacing: .05em;
+}
+.q-type-tag {
+  font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  padding: .22rem .6rem; border-radius: 5px; letter-spacing: .06em;
+}
+.q-type-tag.mcq { background: rgba(52,211,153,.1); color: #34d399; }
+.q-type-tag.subj { background: rgba(124,95,247,.1); color: #7c5ff7; }
+.q-marks-tag {
+  margin-left: auto;
+  font-size: .72rem; color: #7a8099;
+  background: rgba(255,255,255,.04);
+  padding: .2rem .55rem; border-radius: 5px;
+}
+
+.q-text {
+  font-size: 1.15rem; font-weight: 500;
+  line-height: 1.75; color: #e8eaf0;
+  margin-bottom: 1.5rem;
+}
+.q-img-box {
+  margin-bottom: 1.5rem;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  background: #12151f;
+  display: inline-block; max-width: 100%;
+}
+.q-img-box img { display: block; max-width: 100%; max-height: 280px; object-fit: contain; }
+
+/* MCQ options */
+.options-list { display: flex; flex-direction: column; gap: .7rem; }
+.opt-wrap input[type=radio] { display: none; }
+.opt-wrap label {
+  display: flex; align-items: center; gap: .9rem;
+  padding: .95rem 1.15rem;
+  background: rgba(255,255,255,.025);
+  border: 1.5px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .18s, background .18s, transform .15s;
+  font-size: .95rem; color: #c8cbda;
+  user-select: none;
+}
+.opt-wrap label:hover {
+  background: rgba(79,142,247,.06);
+  border-color: rgba(79,142,247,.35);
+  color: #e8eaf0;
+  transform: translateX(2px);
+}
+.opt-wrap input[type=radio]:checked + label {
+  background: rgba(79,142,247,.1);
+  border-color: #4f8ef7;
+  color: #e8eaf0;
+}
+.opt-key {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700; color: #7a8099;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all .18s;
+}
+.opt-wrap input[type=radio]:checked + label .opt-key {
+  background: #4f8ef7; border-color: #4f8ef7; color: #fff;
+}
+.opt-content { flex: 1; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.opt-img { max-height: 72px; border-radius: 7px; }
+
+/* ── SUBJECTIVE ANSWER BOX ── */
+.subj-wrapper { position: relative; }
+
+.subj-toolbar {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .75rem;
+  background: rgba(255,255,255,.03);
+  border: 1.5px solid rgba(255,255,255,.07);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+}
+
+.math-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .3rem .7rem;
+  background: rgba(124,95,247,.12);
+  border: 1px solid rgba(124,95,247,.3);
+  border-radius: 7px;
+  color: #a78bfa;
+  font-size: .75rem; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+  font-family: 'Sora', sans-serif;
+}
+.math-btn:hover { background: rgba(124,95,247,.22); border-color: #7c5ff7; color: #c4b5fd; }
+.math-btn-icon { font-size: .9rem; }
+
+.subj-textarea {
+  width: 100%; min-height: 160px;
+  background: rgba(255,255,255,.025);
+  border: 1.5px solid rgba(255,255,255,.07);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  color: #e8eaf0;
+  font-family: 'Sora', sans-serif; font-size: .95rem; line-height: 1.65;
+  padding: 1.1rem 1.25rem; resize: vertical; outline: none;
+  transition: border-color .2s;
+  box-sizing: border-box;
+}
+.subj-textarea:focus { border-color: rgba(79,142,247,.45); }
+.subj-textarea::placeholder { color: rgba(122,128,153,.4); }
+
+/* ── MATH KEYBOARD POPUP ── */
+.math-popup {
+  display: none;
+  position: fixed;   /* 🔥 CHANGE: absolute → fixed */
+  top: 200px;        /* initial position */
+  left: 300px;
+  width: 420px;      /* 🔥 FIXED WIDTH (important) */
+
+  z-index: 9999;     /* 🔥 bring to top */
+
+  background: #12151f;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  padding: .9rem 1rem 1rem;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+
+  cursor: move;
+}.math-popup.open { display: block; }
+@keyframes popUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+.math-popup-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .7rem;
+}
+.math-popup-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #7a8099; }
+.math-popup-close {
+  width: 22px; height: 22px; border-radius: 5px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+  color: #7a8099; font-size: .75rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.math-popup-close:hover { background: rgba(248,113,113,.1); color: #f87171; border-color: rgba(248,113,113,.2); }
+
+.math-tabs {
+  display: flex; gap: .35rem; margin-bottom: .75rem; flex-wrap: wrap;
+}
+.math-tab {
+  padding: .25rem .65rem; border-radius: 6px;
+  font-size: .7rem; font-weight: 600; cursor: pointer;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+  color: #7a8099; transition: all .15s;
+}
+.math-tab.active { background: rgba(124,95,247,.15); border-color: rgba(124,95,247,.35); color: #a78bfa; }
+.math-tab:hover:not(.active) { background: rgba(255,255,255,.07); color: #c8cbda; }
+
+.math-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: .3rem;
+}
+.math-sym {
+  padding: .45rem .2rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 7px;
+  color: #c8cbda; font-size: .9rem;
+  cursor: pointer; text-align: center;
+  transition: all .15s;
+  min-height: 36px; display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+.math-sym:hover { background: rgba(124,95,247,.15); border-color: rgba(124,95,247,.3); color: #e8eaf0; transform: scale(1.05); }
+.math-sym:active { transform: scale(.97); }
+.math-sym.wide { grid-column: span 2; font-size: .75rem; }
+
+/* ── NAV FOOTER ── */
+.nav-footer {
+  flex-shrink: 0;
+  padding: 1rem 4rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(11,13,20,.8);
+}
+.nav-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .6rem 1.4rem; border-radius: 10px;
+  font-family: 'Sora', sans-serif; font-size: .85rem; font-weight: 600;
+  cursor: pointer; border: none; transition: all .18s;
+}
+.nav-btn.prev-btn {
+  background: rgba(255,255,255,.06);
+  color: #c8cbda; border: 1px solid rgba(255,255,255,.09);
+}
+.nav-btn.prev-btn:hover:not(:disabled) { background: rgba(255,255,255,.1); }
+.nav-btn.prev-btn:disabled { opacity: .3; cursor: not-allowed; }
+.nav-btn.next-btn {
+  background: linear-gradient(135deg, #4f8ef7, #7c5ff7);
+  color: #fff; box-shadow: 0 2px 14px rgba(79,142,247,.35);
+}
+.nav-btn.next-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,142,247,.5); }
+.nav-btn.next-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.nav-center { text-align: center; }
+.nav-fraction { font-size: .8rem; color: #7a8099; }
+.nav-fraction strong { color: #4f8ef7; }
+
+/* ── SIDEBAR (right) ── */
+.sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  background: #0e1019;
+  border-left: 1px solid rgba(255,255,255,.06);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sb-header {
+  padding: 1.25rem 1.1rem .9rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.sb-title {
+  font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .12em; color: #7a8099; margin-bottom: .35rem;
+}
+.sb-progress-text { font-size: .8rem; color: #e8eaf0; font-weight: 500; }
+.sb-progress-text span { color: #34d399; }
+
+/* ── DOTS PALETTE ── */
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  padding: 1rem 1.1rem;
+  overflow-y: auto;
+  flex: 1;
+  align-content: flex-start;
+}
+.palette::-webkit-scrollbar { width: 3px; }
+.palette::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 3px; }
+
+.p-btn {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer; border: 2px solid transparent;
+  background: rgba(255,255,255,.06);
+  color: #5a5f7a;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.p-btn:hover { background: rgba(79,142,247,.15); color: #4f8ef7; border-color: rgba(79,142,247,.35); }
+.p-btn.is-current {
+  background: rgba(79,142,247,.18);
+  border-color: #4f8ef7;
+  color: #4f8ef7;
+  box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+}
+.p-btn.is-answered {
+  background: rgba(52,211,153,.15);
+  border-color: rgba(52,211,153,.45);
+  color: #34d399;
+}
+.p-btn.is-answered.is-current {
+  background: rgba(52,211,153,.22);
+  border-color: #34d399;
+  box-shadow: 0 0 0 3px rgba(52,211,153,.15);
+}
+
+/* Legend */
+.sb-legend {
+  padding: .75rem 1.1rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex; flex-direction: column; gap: .35rem;
+}
+.legend-row { display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: #7a8099; }
+.leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Submit button at bottom of sidebar */
+.sb-submit {
+  padding: .9rem 1.1rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.submit-btn {
+  width: 100%; padding: .75rem;
+  background: linear-gradient(135deg, #4f8ef7, #7c5ff7);
+  color: #fff; border: none; border-radius: 10px;
+  font-family: 'Sora', sans-serif; font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  box-shadow: 0 2px 16px rgba(79,142,247,.3);
+  letter-spacing: .01em;
+}
+.submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 24px rgba(79,142,247,.5); }
+
+/* ── SUBMIT MODAL ── */
+.modal-bg {
+  display: none; position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: #12151f;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 18px; padding: 2.25rem;
+  width: 360px;
+  animation: modalPop .2s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modalPop { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-icon { font-size: 2rem; margin-bottom: .75rem; }
+.modal-h { font-size: 1.15rem; font-weight: 700; color: #e8eaf0; margin-bottom: .4rem; }
+.modal-sub { font-size: .85rem; color: #7a8099; line-height: 1.55; margin-bottom: 1.5rem; }
+.modal-stats { display: flex; gap: .75rem; margin-bottom: 1.5rem; }
+.modal-stat { flex: 1; text-align: center; padding: .9rem .5rem; border-radius: 10px; }
+.modal-stat.a-stat { background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.18); }
+.modal-stat.u-stat { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.18); }
+.modal-stat-n { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.a-stat .modal-stat-n { color: #34d399; }
+.u-stat .modal-stat-n { color: #f87171; }
+.modal-stat-l { font-size: .68rem; color: #7a8099; margin-top: .3rem; text-transform: uppercase; letter-spacing: .06em; }
+.modal-btns { display: flex; gap: .65rem; }
+.modal-cancel {
+  flex: 1; padding: .7rem; border-radius: 9px;
+  background: rgba(255,255,255,.06); color: #c8cbda;
+  border: 1px solid rgba(255,255,255,.09);
+  font-family: 'Sora', sans-serif; font-size: .85rem; font-weight: 500; cursor: pointer;
+  transition: background .15s;
+}
+.modal-cancel:hover { background: rgba(255,255,255,.1); }
+.modal-confirm {
+  flex: 2; padding: .7rem; border-radius: 9px;
+  background: linear-gradient(135deg,#4f8ef7,#7c5ff7);
+  color: #fff; border: none;
+  font-family: 'Sora', sans-serif; font-size: .85rem; font-weight: 700; cursor: pointer;
+  transition: all .18s;
+}
+.modal-confirm:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(79,142,247,.4); }
+
+/* Mobile touch */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .q-area { padding: 2rem 1.5rem; }
+  .nav-footer { padding: 1rem 1.5rem; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-brand-icon">✦</div>
+    <div>
+      <div class="topbar-title">{{ exam['title'] }}</div>
+      <div class="topbar-sub">{{ questions|length }} questions &middot; In progress</div>
+    </div>
+  </div>
+  <div class="timer-capsule">
+    <div class="timer-dot" id="timerDot"></div>
+    <div class="timer-txt" id="timerTxt">--:--</div>
+  </div>
+</div>
+
+<!-- ROOT -->
+<div class="exam-root">
+
+  <!-- QUESTION PANEL -->
+  <div class="q-panel">
+    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+
+    <form id="examForm" method="POST" action="/submit/{{ exam['id'] }}">
+
+      <div class="q-area" id="qArea">
+        {% for q in questions %}
+        <div class="q-slide {% if loop.first %}active{% endif %}" id="slide-{{ loop.index0 }}">
+
+          <div class="q-meta-row">
+            <span class="q-num-badge">Q {{ loop.index }}</span>
+            <span class="q-type-tag {% if q['type'] == 'mcq' %}mcq{% else %}subj{% endif %}">
+              {{ 'Multiple Choice' if q['type'] == 'mcq' else 'Subjective' }}
+            </span>
+            <span class="q-marks-tag">{{ q['marks'] }} mark{% if q['marks'] != 1 %}s{% endif %}</span>
+          </div>
+
+          {% if q['question'] %}
+          <div class="q-text">{{ q['question'] }}</div>
+          {% endif %}
+          {% if q['question_image'] %}
+          <div class="q-img-box">
+            <img src="/static/{{ q['question_image'] }}" alt="Question image">
+          </div>
+          {% endif %}
+
+          {% if q['type'] == 'mcq' %}
+          <div class="options-list">
+            {% for key, text, img in [('A', q['option_a'], q['option_a_image']),
+                                       ('B', q['option_b'], q['option_b_image']),
+                                       ('C', q['option_c'], q['option_c_image']),
+                                       ('D', q['option_d'], q['option_d_image'])] %}
+            {% if text or img %}
+            <div class="opt-wrap">
+              <input type="radio" name="q{{ q['id'] }}" id="r{{ q['id'] }}_{{ key }}" value="{{ key }}">
+              <label for="r{{ q['id'] }}_{{ key }}">
+                <span class="opt-key">{{ key }}</span>
+                <span class="opt-content">
+                  {% if text %}<span>{{ text }}</span>{% endif %}
+                  {% if img %}<img class="opt-img" src="/static/{{ img }}" alt="">{% endif %}
+                </span>
+              </label>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+
+          {% else %}
+          <!-- SUBJECTIVE with Math Keyboard -->
+          <div class="subj-wrapper" id="subj-wrap-{{ loop.index0 }}">
+            <div class="subj-toolbar">
+              <button type="button" class="math-btn" onclick="toggleMath({{ loop.index0 }})">
+                <span class="math-btn-icon">∑</span> Math Symbols
+              </button>
+              <span style="font-size:.7rem;color:#5a5f7a;margin-left:.3rem;">Click a symbol to insert at cursor</span>
+            </div>
+
+            <!-- Math Popup -->
+            <div class="math-popup" id="mathpop-{{ loop.index0 }}">
+              <div class="math-popup-header">
+                <span class="math-popup-title">Mathematical Symbols</span>
+                <button type="button" class="math-popup-close" onclick="toggleMath({{ loop.index0 }})">✕</button>
+              </div>
+              <div class="math-tabs">
+                <button type="button" class="math-tab active" onclick="switchTab(this, 'greek', {{ loop.index0 }})">Greek</button>
+                <button type="button" class="math-tab" onclick="switchTab(this, 'operators', {{ loop.index0 }})">Operators</button>
+                <button type="button" class="math-tab" onclick="switchTab(this, 'calculus', {{ loop.index0 }})">Calculus</button>
+                <button type="button" class="math-tab" onclick="switchTab(this, 'relations', {{ loop.index0 }})">Relations</button>
+                <button type="button" class="math-tab" onclick="switchTab(this, 'arrows', {{ loop.index0 }})">Arrows</button>
+                <button type="button" class="math-tab" onclick="switchTab(this, 'misc', {{ loop.index0 }})">Misc</button>
+              </div>
+              <div class="math-grid" id="mathgrid-{{ loop.index0 }}">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <textarea class="subj-textarea" name="q{{ q['id'] }}"
+                      id="ta-{{ loop.index0 }}"
+                      placeholder="Write your answer here… Use the ∑ Math Symbols button above to insert mathematical expressions."></textarea>
+          </div>
+          {% endif %}
+
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- NAV FOOTER -->
+      <div class="nav-footer">
+        <button type="button" class="nav-btn prev-btn" id="btnPrev" onclick="go(cur-1)" disabled>
+          ← Previous
+        </button>
+        <div class="nav-center">
+          <div class="nav-fraction"><strong id="curLabel">1</strong> / {{ questions|length }}</div>
+        </div>
+        <button type="button" class="nav-btn next-btn" id="btnNext" onclick="go(cur+1)"
+                {% if questions|length <= 1 %}disabled{% endif %}>
+          Next →
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-title">Questions</div>
+      <div class="sb-progress-text"><span id="sbAnswered">0</span> of {{ questions|length }} answered</div>
+    </div>
+
+    <div class="palette" id="palette">
+      {% for q in questions %}
+      <button type="button" class="p-btn {% if loop.first %}is-current{% endif %}"
+              id="pb-{{ loop.index0 }}" onclick="go({{ loop.index0 }})"
+              title="Question {{ loop.index }}">
+        {{ loop.index }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="sb-legend">
+      <div class="legend-row">
+        <div class="leg-dot" style="background:rgba(79,142,247,.4);border:2px solid #4f8ef7"></div>
+        Current
+      </div>
+      <div class="legend-row">
+        <div class="leg-dot" style="background:rgba(52,211,153,.35);border:2px solid #34d399"></div>
+        Answered
+      </div>
+      <div class="legend-row">
+        <div class="leg-dot" style="background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15)"></div>
+        Not answered
+      </div>
+    </div>
+
+    <div class="sb-submit">
+      <button type="button" class="submit-btn" onclick="openModal()">
+        ✓ &nbsp;Submit Exam
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUBMIT MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-icon">📋</div>
+    <div class="modal-h">Submit Exam?</div>
+    <div class="modal-sub">Once submitted, you cannot return or change any answers.</div>
+    <div class="modal-stats">
+      <div class="modal-stat a-stat">
+        <div class="modal-stat-n" id="mAnswered">0</div>
+        <div class="modal-stat-l">Answered</div>
+      </div>
+      <div class="modal-stat u-stat">
+        <div class="modal-stat-n" id="mUnanswered">0</div>
+        <div class="modal-stat-l">Unanswered</div>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Go back</button>
+      <button class="modal-confirm" onclick="doSubmit()">Submit now →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL = {{ questions|length }};
+const qMeta = [
+  {% for q in questions %}
+  { type: '{{ q["type"] }}', name: 'q{{ q["id"] }}', idx: {{ loop.index0 }} },
+  {% endfor %}
+];
+
+let cur = 0;
+let submitting = false;
+
+function isAnswered(i) {
+  const m = qMeta[i];
+  if (m.type === 'mcq') return !!document.querySelector(`input[name="${m.name}"]:checked`);
+  const el = document.querySelector(`textarea[name="${m.name}"]`);
+  return el && el.value.trim().length > 0;
+}
+
+function refreshUI() {
+  let count = 0;
+  for (let i = 0; i < TOTAL; i++) {
+    const ans = isAnswered(i);
+    if (ans) count++;
+    const pb = document.getElementById('pb-' + i);
+    pb.className = 'p-btn';
+    if (i === cur) pb.classList.add('is-current');
+    if (ans) pb.classList.add('is-answered');
+  }
+  document.getElementById('sbAnswered').textContent = count;
+  document.getElementById('progFill').style.width = (count / TOTAL * 100) + '%';
+  document.getElementById('curLabel').textContent = cur + 1;
+  document.getElementById('btnPrev').disabled = (cur === 0);
+  document.getElementById('btnNext').disabled = (cur === TOTAL - 1);
+}
+
+function go(idx) {
+  if (idx < 0 || idx >= TOTAL) return;
+  // close any open math popup
+  document.querySelectorAll('.math-popup.open').forEach(p => p.classList.remove('open'));
+  document.getElementById('slide-' + cur).classList.remove('active');
+  cur = idx;
+  document.getElementById('slide-' + cur).classList.add('active');
+  document.getElementById('qArea').scrollTop = 0;
+  refreshUI();
+}
+
+// Attach listeners
+document.querySelectorAll('input[type=radio]').forEach(el => el.addEventListener('change', refreshUI));
+document.querySelectorAll('textarea').forEach(el => el.addEventListener('input', refreshUI));
+
+// Modal
+function openModal() {
+  refreshUI();
+  const ans = qMeta.filter((_,i) => isAnswered(i)).length;
+  document.getElementById('mAnswered').textContent = ans;
+  document.getElementById('mUnanswered').textContent = TOTAL - ans;
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+function doSubmit() { submitting = true; document.getElementById('examForm').submit(); }
+document.getElementById('modalBg').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// Timer
+let remaining = {{ duration }};
+const dotEl = document.getElementById('timerDot');
+const txtEl = document.getElementById('timerTxt');
+function fmt(s) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function tick() {
+  txtEl.textContent = fmt(remaining);
+  const cls = remaining <= 60 ? 'crit' : remaining <= 300 ? 'warn' : '';
+  txtEl.className = 'timer-txt ' + cls;
+  dotEl.className = 'timer-dot ' + cls;
+  if (remaining <= 0) { submitting = true; document.getElementById('examForm').submit(); return; }
+  remaining--;
+}
+tick(); setInterval(tick, 1000);
+
+// Anti-cheat
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => { if (e.ctrlKey && ['c','v','u'].includes(e.key)) e.preventDefault(); });
+let warns = 0;
+document.addEventListener('visibilitychange', () => {
+  if (submitting) return;
+  if (document.hidden) {
+    warns++;
+    if (warns === 1) alert('⚠ Warning: Do not switch tabs! One more violation will auto-submit.');
+    else { submitting = true; alert('Exam auto-submitted due to tab switching.'); document.getElementById('examForm').submit(); }
+  }
+});
+
+// ── MATH KEYBOARD ──
+const MATH_SYMBOLS = {
+  greek: [
+    {sym:'α', label:'alpha'}, {sym:'β', label:'beta'}, {sym:'γ', label:'gamma'},
+    {sym:'δ', label:'delta'}, {sym:'ε', label:'epsilon'}, {sym:'ζ', label:'zeta'},
+    {sym:'η', label:'eta'}, {sym:'θ', label:'theta'}, {sym:'ι', label:'iota'},
+    {sym:'κ', label:'kappa'}, {sym:'λ', label:'lambda'}, {sym:'μ', label:'mu'},
+    {sym:'ν', label:'nu'}, {sym:'ξ', label:'xi'}, {sym:'π', label:'pi'},
+    {sym:'ρ', label:'rho'}, {sym:'σ', label:'sigma'}, {sym:'τ', label:'tau'},
+    {sym:'υ', label:'upsilon'}, {sym:'φ', label:'phi'}, {sym:'χ', label:'chi'},
+    {sym:'ψ', label:'psi'}, {sym:'ω', label:'omega'},
+    {sym:'Γ', label:'Gamma'}, {sym:'Δ', label:'Delta'}, {sym:'Θ', label:'Theta'},
+    {sym:'Λ', label:'Lambda'}, {sym:'Ξ', label:'Xi'}, {sym:'Π', label:'Pi'},
+    {sym:'Σ', label:'Sigma'}, {sym:'Φ', label:'Phi'}, {sym:'Ψ', label:'Psi'},
+    {sym:'Ω', label:'Omega'},
+  ],
+  operators: [
+    {sym:'+'}, {sym:'−'}, {sym:'×'}, {sym:'÷'}, {sym:'±'}, {sym:'∓'},
+    {sym:'·'}, {sym:'∘'}, {sym:'⊕'}, {sym:'⊗'},
+    {sym:'²', label:'²'}, {sym:'³', label:'³'}, {sym:'ⁿ', label:'ⁿ'},
+    {sym:'√', label:'√'}, {sym:'∛', label:'∛'}, {sym:'∜', label:'∜'},
+    {sym:'%'}, {sym:'‰'},
+    {sym:'⌊', label:'floor'}, {sym:'⌋'}, {sym:'⌈', label:'ceil'}, {sym:'⌉'},
+    {sym:'|'}, {sym:'‖'}, {sym:'!'}, {sym:'∞'},
+  ],
+  calculus: [
+    {sym:'∫', label:'integral'}, {sym:'∬', label:'double ∫'}, {sym:'∭', label:'triple ∫'},
+    {sym:'∮', label:'contour ∫'}, {sym:'∯'}, {sym:'∰'},
+    {sym:'∂', label:'partial'}, {sym:'∇', label:'nabla'}, {sym:'Δ', label:'Delta'},
+    {sym:'d/dx', label:'d/dx', wide:true}, {sym:'∂/∂x', label:'∂/∂x', wide:true},
+    {sym:'lim', label:'lim', wide:true}, {sym:'∑', label:'sum'}, {sym:'∏', label:'product'},
+    {sym:'dx'}, {sym:'dy'}, {sym:'dt'}, {sym:'dθ'},
+    {sym:'→0', label:'→0'}, {sym:'→∞', label:'→∞'},
+    {sym:'f\'', label:"f'"}, {sym:'f\'\'', label:"f''"}, {sym:'ẋ', label:'ẋ'}, {sym:'ẍ', label:'ẍ'},
+  ],
+  relations: [
+    {sym:'='}, {sym:'≠'}, {sym:'<'}, {sym:'>'}, {sym:'≤'}, {sym:'≥'},
+    {sym:'≡'}, {sym:'≈'}, {sym:'≅'}, {sym:'∼'}, {sym:'∝'},
+    {sym:'∈', label:'in'}, {sym:'∉', label:'not in'}, {sym:'⊂'}, {sym:'⊃'},
+    {sym:'⊆'}, {sym:'⊇'}, {sym:'∪'}, {sym:'∩'},
+    {sym:'∧', label:'AND'}, {sym:'∨', label:'OR'}, {sym:'¬', label:'NOT'},
+    {sym:'⇒'}, {sym:'⇔'}, {sym:'∀', label:'for all'}, {sym:'∃', label:'exists'},
+  ],
+  arrows: [
+    {sym:'→'}, {sym:'←'}, {sym:'↑'}, {sym:'↓'},
+    {sym:'↔'}, {sym:'↕'}, {sym:'⇒'}, {sym:'⇐'},
+    {sym:'⇑'}, {sym:'⇓'}, {sym:'⇔'}, {sym:'⇕'},
+    {sym:'↗'}, {sym:'↘'}, {sym:'↙'}, {sym:'↖'},
+    {sym:'↦'}, {sym:'↤'}, {sym:'↢'}, {sym:'↣'},
+    {sym:'⟶'}, {sym:'⟵'}, {sym:'⟷'}, {sym:'↺'},
+  ],
+  misc: [
+    {sym:'°', label:'degree'}, {sym:'′', label:'prime'}, {sym:'″', label:'double prime'},
+    {sym:'℃'}, {sym:'℉'}, {sym:'Å', label:'angstrom'},
+    {sym:'ℏ', label:'h-bar'}, {sym:'ℓ', label:'ell'},
+    {sym:'ℝ', label:'Reals'}, {sym:'ℤ', label:'Integers'}, {sym:'ℕ', label:'Naturals'},
+    {sym:'ℚ', label:'Rationals'}, {sym:'ℂ', label:'Complex'},
+    {sym:'∅', label:'empty set'}, {sym:'∞', label:'infinity'},
+    {sym:'⊥', label:'perp'}, {sym:'∥', label:'parallel'}, {sym:'∠', label:'angle'},
+    {sym:'△', label:'triangle'}, {sym:'□', label:'square'}, {sym:'○', label:'circle'},
+    {sym:'π', label:'pi'}, {sym:'e', label:'e'}, {sym:'i', label:'i'},
+  ]
+};
+
+// Track active tab per popup
+const activeTabs = {};
+
+function buildGrid(qIdx, category) {
+  const grid = document.getElementById('mathgrid-' + qIdx);
+  const syms = MATH_SYMBOLS[category] || [];
+  grid.innerHTML = syms.map(s =>
+    `<button type="button" class="math-sym${s.wide?' wide':''}"
+      title="${s.label || s.sym}"
+      onclick="insertSym(${qIdx}, '${s.sym.replace(/'/g, "\\'")}')">
+      ${s.sym}
+    </button>`
+  ).join('');
+}
+
+function switchTab(el, category, qIdx) {
+  el.closest('.math-popup').querySelectorAll('.math-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  activeTabs[qIdx] = category;
+  buildGrid(qIdx, category);
+}
+
+function toggleMath(qIdx) {
+  const popup = document.getElementById('mathpop-' + qIdx);
+  const isOpen = popup.classList.contains('open');
+  // close all other popups
+  document.querySelectorAll('.math-popup.open').forEach(p => p.classList.remove('open'));
+  if (!isOpen) {
+    popup.classList.add('open');
+    // init grid if not yet built
+    if (!activeTabs[qIdx]) {
+      activeTabs[qIdx] = 'greek';
+      buildGrid(qIdx, 'greek');
+    }
+  }
+}
+
+// Insert symbol at cursor position in the textarea
+function insertSym(qIdx, sym) {
+  const ta = document.getElementById('ta-' + qIdx);
+  if (!ta) return;
+  ta.focus();
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const before = ta.value.substring(0, start);
+  const after = ta.value.substring(end);
+  ta.value = before + sym + after;
+  // move cursor after inserted symbol
+  const newPos = start + sym.length;
+  ta.setSelectionRange(newPos, newPos);
+  // trigger input event so answered state updates
+  ta.dispatchEvent(new Event('input'));
+}
+
+/* ============================= */
+/* ✅ DRAGGABLE MATH POPUP FIXED */
+/* ============================= */
+
+let activePopup = null;
+let offsetX = 0;
+let offsetY = 0;
+
+// start drag
+document.querySelectorAll('.math-popup-header').forEach(header => {
+  header.addEventListener('mousedown', function(e) {
+    activePopup = this.parentElement;
+
+    const rect = activePopup.getBoundingClientRect();
+
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+
+    document.body.style.userSelect = 'none';
+  });
+});
+
+// dragging
+document.addEventListener('mousemove', function(e) {
+  if (!activePopup) return;
+
+  activePopup.style.left = (e.clientX - offsetX) + 'px';
+  activePopup.style.top = (e.clientY - offsetY) + 'px';
+});
+
+// stop drag
+document.addEventListener('mouseup', function() {
+  activePopup = null;
+  document.body.style.userSelect = '';
+});
+// Close math popup when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.subj-wrapper')) {
+    document.querySelectorAll('.math-popup.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
+// Init
+refreshUI();
+</script>
+{% endblock %}

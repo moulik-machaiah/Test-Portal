@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>My Exams</h1>
+    <p>Available exams for you to take.</p>
+  </div>
+
+  {% if exams %}
+  {% for e in exams %}
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+    <div>
+      <div style="font-weight:600;margin-bottom:.25rem">{{ e['title'] }}</div>
+      <div style="font-size:.8rem;color:var(--muted)">
+        Duration: {{ e['duration'] // 60 }}m {{ e['duration'] % 60 }}s
+      </div>
+    </div>
+    {% if e['id'] in submitted_ids %}
+      {% if e['results_published'] and e['id'] in scores %}
+        <div style="text-align:right">
+          <div style="font-size:1.4rem;font-weight:600;color:var(--accent)">{{ scores[e['id']][0] }} / {{ scores[e['id']][1] }}</div>
+          <div style="font-size:.75rem;color:var(--success)">✓ Results published</div>
+        </div>
+      {% else %}
+        <span style="font-size:.85rem;color:var(--muted)">⏳ Awaiting results</span>
+      {% endif %}
+    {% else %}
+      <a class="btn btn-primary" href="/instructions/{{ e['id'] }}">Start Exam →</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="card" style="text-align:center;padding:3rem">
+    <p style="color:var(--muted)">No exams are available right now. Check back later.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

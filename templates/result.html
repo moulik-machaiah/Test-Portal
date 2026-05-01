@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Submitted{% endblock %}
+{% block extra_head %}
+<style>
+.result-page { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 58px); }
+.result-box { width: 100%; max-width: 420px; text-align: center; }
+.result-circle {
+  width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, rgba(52,211,153,.15), rgba(79,142,247,.15));
+  border: 2px solid rgba(52,211,153,.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem;
+  animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+.result-box h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+.result-box p { color: var(--muted); font-size: .9rem; line-height: 1.6; margin-bottom: 1.75rem; }
+.result-note {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem;
+  font-size: .85rem; color: var(--muted); line-height: 1.6;
+  margin-bottom: 1.75rem; text-align: left;
+  display: flex; gap: .75rem; align-items: flex-start;
+}
+.result-note .note-icon { font-size: 1.1rem; flex-shrink: 0; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="result-page">
+  <div class="result-box">
+    <div class="result-circle">📬</div>
+    <h1>Exam Submitted!</h1>
+    <p>Your responses have been saved successfully. Results will be available once the admin publishes them.</p>
+    <div class="result-note">
+      <span class="note-icon">💡</span>
+      <span>Check the <strong>Results</strong> tab on your dashboard to see your score once it's published.</span>
+    </div>
+    <a class="btn btn-primary" href="/student/exams" style="width:100%;justify-content:center;padding:.8rem">← Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

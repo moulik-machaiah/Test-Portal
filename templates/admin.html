@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_head %}
+<style>
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+@media(max-width:600px) { .stats-row { grid-template-columns: 1fr; } }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem 1.5rem;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.stat-num { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: .25rem; }
+.stat-lbl { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+.stat-icon { position: absolute; right: 1.25rem; top: 1.25rem; font-size: 1.4rem; opacity: .15; }
+
+.exam-row {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .85rem 1.25rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(255,255,255,.05);
+  margin-bottom: .5rem;
+  transition: border-color .18s, background .18s;
+}
+.exam-row:hover { border-color: var(--border2); background: rgba(255,255,255,.04); }
+.exam-id { font-family: var(--mono); font-size: .72rem; color: var(--muted2); width: 32px; }
+.exam-info { flex: 1; }
+.exam-name { font-size: .9rem; font-weight: 600; color: var(--text); }
+.exam-dur { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
+.exam-status { font-size: .72rem; padding: .18rem .5rem; border-radius: 4px; font-weight: 600; }
+.exam-status.pub { background: rgba(52,211,153,.1); color: var(--success); }
+.exam-status.unpub { background: rgba(122,128,153,.1); color: var(--muted); }
+.exam-actions { display: flex; gap: .5rem; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>Admin Dashboard</h1>
+    <p>Manage exams, questions, and student submissions.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">📋</div>
+      <div class="stat-num">{{ exams|length }}</div>
+      <div class="stat-lbl">Total Exams</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-num">{{ exams|selectattr('results_published')|list|length }}</div>
+      <div class="stat-lbl">Published</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⏳</div>
+      <div class="stat-num">{{ exams|rejectattr('results_published')|list|length }}</div>
+      <div class="stat-lbl">Pending Results</div>
+    </div>
+  </div>
+
+  <!-- Create exam -->
+  <div class="card">
+    <div class="card-title">Create New Exam</div>
+    <form method="POST" action="/create_exam">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Exam Title</label>
+          <input type="text" name="title" placeholder="e.g. Mathematics — Unit 3" required>
+        </div>
+        <div class="form-group">
+          <label>Duration (seconds)</label>
+          <input type="number" name="duration" placeholder="e.g. 3600" min="60" required>
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit">+ Create Exam</button>
+    </form>
+  </div>
+
+  <!-- Exams list -->
+  <div class="card">
+    <div class="card-title">All Exams</div>
+    {% if exams %}
+    {% for e in exams %}
+    <div class="exam-row">
+      <div class="exam-id">#{{ e['id'] }}</div>
+      <div class="exam-info">
+        <div class="exam-name">{{ e['title'] }}</div>
+        <div class="exam-dur">{{ e['duration'] // 60 }}m {{ e['duration'] % 60 }}s</div>
+      </div>
+      <span class="exam-status {% if e['results_published'] %}pub{% else %}unpub{% endif %}">
+        {{ 'Published' if e['results_published'] else 'Unpublished' }}
+      </span>
+      <div class="exam-actions">
+        <a class="btn btn-secondary btn-sm" href="/add_question?exam_id={{ e['id'] }}">Questions</a>
+        <a class="btn btn-sm" style="background:rgba(124,95,247,.12);color:var(--accent2);border:1px solid rgba(124,95,247,.2)"
+           href="/view_responses?exam_id={{ e['id'] }}">Responses</a>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:var(--muted);font-size:.875rem">
+      No exams yet. Create your first one above.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+{% block extra_head %}
+<style>
+.tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+.tab-link { padding: .75rem 1.5rem; font-size: .85rem; font-weight: 600; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
+.tab-link:hover { color: var(--text); }
+.tab-link.on { color: var(--accent); border-color: var(--accent); }
+
+.result-card {
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: .65rem;
+}
+.result-icon {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+}
+.result-icon.pub { background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.25); }
+.result-icon.pending { background: rgba(122,128,153,.08); border: 1px solid var(--border); }
+.result-body { flex: 1; }
+.result-name { font-size: .95rem; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+.result-sub { font-size: .78rem; color: var(--muted); }
+.score-display { text-align: right; }
+.score-big { font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1; }
+.score-denom { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+.score-pct {
+  font-size: .72rem; font-weight: 700; margin-top: .3rem;
+  padding: .15rem .45rem; border-radius: 4px; display: inline-block;
+}
+
+.pending-badge { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
+
+.empty-state { text-align:center; padding:3.5rem 2rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
+.empty-icon { font-size:2.5rem; margin-bottom:.75rem; opacity:.5; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+  <div class="page-header">
+    <h1>Student Portal</h1>
+    <p>Welcome back, <strong>{{ user }}</strong>.</p>
+  </div>
+
+  
+  {% set submitted_exams = exams | selectattr('id', 'in', submitted_ids) | list %}
+
+  {% if submitted_exams %}
+  {% for e in submitted_exams %}
+  {% set pub = e['results_published'] and e['id'] in scores %}
+  <div class="result-card">
+    <div class="result-icon {% if pub %}pub{% else %}pending{% endif %}">
+      {% if pub %}🏆{% else %}⏳{% endif %}
+    </div>
+    <div class="result-body">
+      <div class="result-name">{{ e['title'] }}</div>
+      <div class="result-sub">
+        {% if pub %}Results published{% else %}Awaiting admin review{% endif %}
+      </div>
+    </div>
+    {% if pub %}
+    {% set earned = scores[e['id']][0] %}
+    {% set total = scores[e['id']][1] %}
+    {% set pct = ((earned / total * 100) | round | int) if total > 0 else 0 %}
+    <div class="score-display">
+      <div class="score-big">{{ earned }}<span style="font-size:1rem;font-weight:400;color:var(--muted)"> / {{ total }}</span></div>
+      <div class="score-denom">
+        <span class="score-pct" style="
+          {% if pct >= 75 %}background:rgba(52,211,153,.12);color:var(--success)
+          {% elif pct >= 50 %}background:rgba(251,191,36,.1);color:var(--warn)
+          {% else %}background:rgba(248,113,113,.1);color:var(--danger){% endif %}
+        ">{{ pct }}%</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="pending-badge">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:pulse 2s infinite;display:inline-block"></span>
+      Pending
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <p style="color:var(--muted);font-size:.875rem">No exam results yet. Complete an exam first.</p>
+  </div>
+  {% endif %}
+</div>
+<style>
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+</style>
+{% endblock %}
