@@ -309,7 +309,7 @@ def delete_question(qid):
     conn.commit()
     conn.close()
     exam_id = request.form.get("exam_id")
-    return redirect(f"/add_question%sexam_id={exam_id}")
+    return redirect(f"/add_question?sexam_id={exam_id}")
 
 
 # ── VIEW RESPONSES & GRADING ───────────────────────────────────────────────
@@ -392,7 +392,7 @@ def publish_results(exam_id):
     cur.execute("UPDATE exams SET results_published=1 WHERE id=%s", (exam_id,))
     conn.commit()
     conn.close()
-    return redirect(f"/view_responses%sexam_id={exam_id}")
+    return redirect(f"/view_responses?exam_id={exam_id}")
 
 
 # ── STUDENT ────────────────────────────────────────────────────────────────
