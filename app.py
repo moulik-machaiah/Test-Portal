@@ -3,6 +3,7 @@ import psycopg2
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.secret_key = "secret_key_change_in_production"
@@ -127,9 +128,12 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
         conn = get_db()
-        user = conn.execute(
-            "SELECT * FROM users WHERE username=? AND password=?", (username, password)
-        ).fetchone()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM users WHERE username=%s AND password=%s",
+            (username, password)
+        )
+        user = cur.fetchone()
         conn.close()
         if user:
             session["user"] = user["username"]
@@ -151,6 +155,7 @@ def logout():
 @login_required(role="admin")
 def admin():
     conn = get_db()
+    cur = conn.cursor()
     exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
     conn.close()
     return render_template("admin.html", exams=exams, user=session["user"])
@@ -159,9 +164,10 @@ def admin():
 @login_required(role="student")
 def student_profile():
     conn = get_db()
+    cur = conn.cursor()
     user = conn.execute("""
         SELECT name, roll, course, phone, photo
-        FROM users WHERE username=?
+        FROM users WHERE username=%s
     """, (session["user"],)).fetchone()
     conn.close()
 
@@ -189,9 +195,10 @@ def add_student():
         photo_path = save_upload("photo")  # uses your existing function
 
         conn = get_db()
+        cur = conn.cursor()
         conn.execute("""
             INSERT INTO users(username, password, role, name, roll, course, phone, photo)
-            VALUES (?, ?, 'student', ?, ?, ?, ?, ?)
+            VALUES (%s, %s, 'student', %s, %s, %s, %s, %s)
         """, (username, password, name, roll, course, phone, photo_path))
         conn.commit()
         conn.close()
@@ -208,7 +215,8 @@ def create_exam():
     if not title or not duration:
         return redirect("/admin")
     conn = get_db()
-    conn.execute("INSERT INTO exams(title, duration) VALUES (?, ?)", (title, int(duration)))
+    cur = conn.cursor()
+    conn.execute("INSERT INTO exams(title, duration) VALUES (%s, %s)", (title, int(duration)))
     conn.commit()
     conn.close()
     return redirect("/admin")
@@ -218,6 +226,7 @@ def create_exam():
 @login_required(role="admin")
 def add_question():
     conn  = get_db()
+    cur = conn.cursor()
     exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
 
     if request.method == "POST":
@@ -250,20 +259,22 @@ def add_question():
                                    error="Provide either question text or an image.",
                                    user=session["user"])
 
+        cur = conn.cursor()
         conn.execute("""
             INSERT INTO questions(exam_id, question, type, marks, correct_answer,
                                   option_a, option_b, option_c, option_d,
                                   question_image, option_a_image, option_b_image,
                                   option_c_image, option_d_image)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (exam_id, question, qtype, int(marks), correct,
               option_a, option_b, option_c, option_d,
               question_image, option_a_image, option_b_image,
               option_c_image, option_d_image))
         conn.commit()
 
+        cur = conn.cursor()
         questions = conn.execute(
-            "SELECT * FROM questions WHERE exam_id=? ORDER BY id", (exam_id,)
+            "SELECT * FROM questions WHERE exam_id=%s ORDER BY id", (exam_id,)
         ).fetchall()
         conn.close()
         return render_template("add_question.html", exams=exams, questions=questions,
@@ -273,8 +284,9 @@ def add_question():
     selected_exam = request.args.get("exam_id")
     questions = []
     if selected_exam:
+        cur = conn.cursor()
         questions = conn.execute(
-            "SELECT * FROM questions WHERE exam_id=? ORDER BY id", (selected_exam,)
+            "SELECT * FROM questions WHERE exam_id=%s ORDER BY id", (selected_exam,)
         ).fetchall()
     conn.close()
     return render_template("add_question.html", exams=exams, questions=questions,
@@ -286,11 +298,12 @@ def add_question():
 @login_required(role="admin")
 def delete_question(qid):
     conn = get_db()
-    conn.execute("DELETE FROM questions WHERE id=?", (qid,))
+    cur = conn.cursor()
+    conn.execute("DELETE FROM questions WHERE id=%s", (qid,))
     conn.commit()
     conn.close()
     exam_id = request.form.get("exam_id")
-    return redirect(f"/add_question?exam_id={exam_id}")
+    return redirect(f"/add_question%sexam_id={exam_id}")
 
 
 # ── VIEW RESPONSES & GRADING ───────────────────────────────────────────────
@@ -299,6 +312,7 @@ def delete_question(qid):
 @login_required(role="admin")
 def view_responses():
     conn  = get_db()
+    cur = conn.cursor()
     exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
 
     selected_exam_id = request.args.get("exam_id", type=int)
@@ -309,17 +323,20 @@ def view_responses():
     exam_obj = None
 
     if selected_exam_id:
-        exam_obj = conn.execute("SELECT * FROM exams WHERE id=?", (selected_exam_id,)).fetchone()
+        cur = conn.cursor()
+        exam_obj = conn.execute("SELECT * FROM exams WHERE id=%s", (selected_exam_id,)).fetchone()
         # Students who submitted this exam
+        cur = conn.cursor()
         students = conn.execute("""
             SELECT DISTINCT r.student
             FROM responses r
             JOIN questions q ON r.question_id = q.id
-            WHERE q.exam_id = ?
+            WHERE q.exam_id = %s
             ORDER BY r.student
         """, (selected_exam_id,)).fetchall()
 
         if selected_student:
+            cur = conn.cursor()
             student_data = conn.execute("""
                 SELECT r.id as resp_id, r.student, q.question, q.question_image,
                        q.type, q.option_a, q.option_b, q.option_c, q.option_d,
@@ -327,7 +344,7 @@ def view_responses():
                        r.answer, r.marks, q.correct_answer, q.marks as max_marks
                 FROM responses r
                 JOIN questions q ON r.question_id = q.id
-                WHERE q.exam_id = ? AND r.student = ?
+                WHERE q.exam_id = %s AND r.student = %s
                 ORDER BY q.id
             """, (selected_exam_id, selected_student)).fetchall()
 
@@ -350,20 +367,22 @@ def grade():
     exam_id  = request.form.get("exam_id")
     student  = request.form.get("student")
     conn = get_db()
-    conn.execute("UPDATE responses SET marks=? WHERE id=?", (marks, resp_id))
+    cur = conn.cursor()
+    conn.execute("UPDATE responses SET marks=%s WHERE id=%s", (marks, resp_id))
     conn.commit()
     conn.close()
-    return redirect(f"/view_responses?exam_id={exam_id}&student={student}")
+    return redirect(f"/view_responses%sexam_id={exam_id}&student={student}")
 
 
 @app.route("/publish_results/<int:exam_id>", methods=["POST"])
 @login_required(role="admin")
 def publish_results(exam_id):
     conn = get_db()
-    conn.execute("UPDATE exams SET results_published=1 WHERE id=?", (exam_id,))
+    cur = conn.cursor()
+    conn.execute("UPDATE exams SET results_published=1 WHERE id=%s", (exam_id,))
     conn.commit()
     conn.close()
-    return redirect(f"/view_responses?exam_id={exam_id}")
+    return redirect(f"/view_responses%sexam_id={exam_id}")
 
 
 # ── STUDENT ────────────────────────────────────────────────────────────────
@@ -378,9 +397,11 @@ def student_root():
 @login_required(role="student")
 def student_exams():
     conn = get_db()
+    cur = conn.cursor()
     exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
+    cur = conn.cursor()
     submitted = conn.execute(
-        "SELECT DISTINCT q.exam_id FROM responses r JOIN questions q ON r.question_id=q.id WHERE r.student=?",
+        "SELECT DISTINCT q.exam_id FROM responses r JOIN questions q ON r.question_id=q.id WHERE r.student=%s",
         (session["user"],)
     ).fetchall()
     submitted_ids = {row["exam_id"] for row in submitted}
@@ -393,9 +414,11 @@ def student_exams():
 @login_required(role="student")
 def student_results():
     conn = get_db()
+    cur = conn.cursor()
     exams = conn.execute("SELECT * FROM exams ORDER BY id DESC").fetchall()
+    cur = conn.cursor()
     submitted = conn.execute(
-        "SELECT DISTINCT q.exam_id FROM responses r JOIN questions q ON r.question_id=q.id WHERE r.student=?",
+        "SELECT DISTINCT q.exam_id FROM responses r JOIN questions q ON r.question_id=q.id WHERE r.student=%s",
         (session["user"],)
     ).fetchall()
     submitted_ids = {row["exam_id"] for row in submitted}
@@ -403,10 +426,11 @@ def student_results():
     scores = {}
     for e in exams:
         if e["id"] in submitted_ids:
+            cur = conn.cursor()
             row = conn.execute(
                 "SELECT SUM(r.marks) as total, SUM(q.marks) as possible "
                 "FROM responses r JOIN questions q ON r.question_id=q.id "
-                "WHERE q.exam_id=? AND r.student=?",
+                "WHERE q.exam_id=%s AND r.student=%s",
                 (e["id"], session["user"])
             ).fetchone()
             scores[e["id"]] = (row["total"] or 0, row["possible"] or 0)
@@ -420,7 +444,8 @@ def student_results():
 @login_required(role="student")
 def instructions(exam_id):
     conn  = get_db()
-    exam  = conn.execute("SELECT * FROM exams WHERE id=?", (exam_id,)).fetchone()
+    cur = conn.cursor()
+    exam  = conn.execute("SELECT * FROM exams WHERE id=%s", (exam_id,)).fetchone()
     conn.close()
     if not exam:
         return redirect("/student/exams")
@@ -431,9 +456,11 @@ def instructions(exam_id):
 @login_required(role="student")
 def exam(exam_id):
     conn      = get_db()
-    exam_row  = conn.execute("SELECT * FROM exams WHERE id=?", (exam_id,)).fetchone()
+    cur = conn.cursor()
+    exam_row  = conn.execute("SELECT * FROM exams WHERE id=%s", (exam_id,)).fetchone()
+    cur = conn.cursor()
     questions = conn.execute(
-        "SELECT * FROM questions WHERE exam_id=? ORDER BY id", (exam_id,)
+        "SELECT * FROM questions WHERE exam_id=%s ORDER BY id", (exam_id,)
     ).fetchall()
     conn.close()
     if not exam_row:
@@ -449,17 +476,19 @@ def submit(exam_id):
     conn    = get_db()
     student = session["user"]
 
+    cur = conn.cursor()
     already = conn.execute("""
         SELECT 1 FROM responses r
         JOIN questions q ON r.question_id=q.id
-        WHERE q.exam_id=? AND r.student=?
+        WHERE q.exam_id=%s AND r.student=%s
     """, (exam_id, student)).fetchone()
     if already:
         conn.close()
         return redirect("/student/exams")
 
+    cur = conn.cursor()
     questions = conn.execute(
-        "SELECT * FROM questions WHERE exam_id=?", (exam_id,)
+        "SELECT * FROM questions WHERE exam_id=%s", (exam_id,)
     ).fetchall()
 
     for q in questions:
@@ -471,8 +500,9 @@ def submit(exam_id):
         score   = 0
         if qtype == "mcq" and ans == correct:
             score = int(marks)
+        cur = conn.cursor()
         conn.execute(
-            "INSERT INTO responses(student, question_id, answer, marks) VALUES (?,?,?,?)",
+            "INSERT INTO responses(student, question_id, answer, marks) VALUES (%s,%s,%s,%s)",
             (student, qid, ans, score)
         )
 
