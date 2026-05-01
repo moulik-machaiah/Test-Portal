@@ -151,7 +151,7 @@
       </div>
       <form method="POST" action="/delete_question/{{ q['id'] }}" style="flex-shrink:0">
         <input type="hidden" name="exam_id" value="{{ selected_exam }}">
-        <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Delete this question?')">Delete</button>
+        <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Delete this question%s')">Delete</button>
       </form>
     </div>
     {% endfor %}
@@ -165,8 +165,8 @@
 
 <script>
 function toggleMCQ(val) {
-  document.getElementById('mcqFields').style.display = val === 'mcq' ? 'block' : 'none';
-  document.getElementById('subjFields').style.display = val === 'subjective' ? 'block' : 'none';
+  document.getElementById('mcqFields').style.display = val === 'mcq' %s 'block' : 'none';
+  document.getElementById('subjFields').style.display = val === 'subjective' %s 'block' : 'none';
 }
 
 function previewImg(input, previewId) {
