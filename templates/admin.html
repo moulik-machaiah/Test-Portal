@@ -126,7 +126,7 @@
         <a class="btn btn-sm" style="background:rgba(124,95,247,.12);color:var(--accent2);border:1px solid rgba(124,95,247,.2)"
            href="/view_responses?exam_id={{ e['id'] }}">Responses</a>
         <form method="POST" action="/delete_exam/{{ e['id'] }}" style="margin:0"
-              onsubmit="return confirm('Delete exam \'{{ e['title'] | replace(\"'\", \"\\\\'\") }}\'?\n\nThis will permanently delete all questions and student results for this exam.')">
+              onsubmit="return confirm('Delete exam &quot;{{ e[\'title\'] }}&quot;?\n\nThis will permanently delete all questions and student results for this exam.')">
           <button class="btn-danger" type="submit">Delete</button>
         </form>
       </div>
