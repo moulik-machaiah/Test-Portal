@@ -140,7 +140,15 @@
 
     {% else %}
     <div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">Student's answer:</div>
-    <div class="answer-box">{{ row['answer'] if row['answer'] else '— no answer —' }}</div>
+    {% if row['answer'] and row['answer'].startswith('uploads/') and row['answer'].endswith('.pdf') %}
+      <a href="/static/{{ row['answer'] }}" target="_blank"
+         style="display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:7px;
+            background:rgba(124,95,247,.12);color:#7c5ff7;border:1px solid rgba(124,95,247,.25);font-size:.85rem;text-decoration:none">
+      📄 View PDF Answer
+      </a>
+    {% else %}
+      <div class="answer-box">{{ row['answer'] if row['answer'] else '— no answer —' }}</div>
+    {% endif %}
     <form method="POST" action="/grade">
       <input type="hidden" name="resp_id" value="{{ row['resp_id'] }}">
       <input type="hidden" name="exam_id" value="{{ selected_exam_id }}">
