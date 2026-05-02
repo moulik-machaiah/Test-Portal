@@ -189,30 +189,65 @@ nav { display: none; }
   color: #e8eaf0;
   font-family: 'Sora', sans-serif; font-size: .95rem; line-height: 1.65;
   padding: 1.1rem 1.25rem; resize: vertical; outline: none;
-  transition: border-color .2s;
+  transition: border-color .2s, opacity .2s;
   box-sizing: border-box;
 }
 .subj-textarea:focus { border-color: rgba(79,142,247,.45); }
 .subj-textarea::placeholder { color: rgba(122,128,153,.4); }
+.subj-textarea:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── PDF UPLOAD BOX ── */
+.pdf-upload-box {
+  margin-top: .85rem;
+  padding: .9rem 1.1rem;
+  border: 1.5px dashed rgba(124,95,247,.3);
+  border-radius: 12px;
+  background: rgba(124,95,247,.04);
+  transition: border-color .2s, background .2s;
+}
+.pdf-upload-box:hover { border-color: rgba(124,95,247,.5); background: rgba(124,95,247,.07); }
+.pdf-upload-label {
+  font-size: .78rem; color: #a78bfa; font-weight: 700;
+  display: flex; align-items: center; gap: .4rem;
+  margin-bottom: .5rem; letter-spacing: .02em;
+}
+.pdf-upload-hint {
+  font-size: .72rem; color: #5a5f7a; margin-top: .4rem; line-height: 1.5;
+}
+.pdf-upload-hint.success { color: #34d399; }
+input[type=file].pdf-input {
+  font-size: .8rem; color: #7a8099;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 7px;
+  padding: .35rem .6rem;
+  width: 100%; box-sizing: border-box;
+  cursor: pointer;
+}
+input[type=file].pdf-input::-webkit-file-upload-button {
+  background: rgba(124,95,247,.18);
+  border: 1px solid rgba(124,95,247,.3);
+  color: #a78bfa; border-radius: 5px;
+  padding: .25rem .65rem; font-size: .75rem; font-weight: 600;
+  cursor: pointer; margin-right: .6rem;
+}
 
 /* ── MATH KEYBOARD POPUP ── */
 .math-popup {
   display: none;
-  position: fixed;   /* 🔥 CHANGE: absolute → fixed */
-  top: 200px;        /* initial position */
+  position: fixed;
+  top: 200px;
   left: 300px;
-  width: 420px;      /* 🔥 FIXED WIDTH (important) */
-
-  z-index: 9999;     /* 🔥 bring to top */
-
+  width: 420px;
+  z-index: 9999;
   background: #12151f;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 14px;
   padding: .9rem 1rem 1rem;
   box-shadow: 0 8px 40px rgba(0,0,0,.6);
-
   cursor: move;
-}.math-popup.open { display: block; }
+}
+.math-popup.open { display: block; }
 @keyframes popUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 
 .math-popup-header {
@@ -456,7 +491,8 @@ nav { display: none; }
   <div class="q-panel">
     <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
 
-    <form id="examForm" method="POST" action="/submit/{{ exam['id'] }}">
+    <!-- ✅ enctype added for PDF file uploads -->
+    <form id="examForm" method="POST" action="/submit/{{ exam['id'] }}" enctype="multipart/form-data">
 
       <div class="q-area" id="qArea">
         {% for q in questions %}
@@ -501,7 +537,7 @@ nav { display: none; }
           </div>
 
           {% else %}
-          <!-- SUBJECTIVE with Math Keyboard -->
+          <!-- SUBJECTIVE with Math Keyboard + PDF Upload -->
           <div class="subj-wrapper" id="subj-wrap-{{ loop.index0 }}">
             <div class="subj-toolbar">
               <button type="button" class="math-btn" onclick="toggleMath({{ loop.index0 }})">
@@ -532,6 +568,23 @@ nav { display: none; }
             <textarea class="subj-textarea" name="q{{ q['id'] }}"
                       id="ta-{{ loop.index0 }}"
                       placeholder="Write your answer here… Use the ∑ Math Symbols button above to insert mathematical expressions."></textarea>
+
+            <!-- ✅ PDF Upload Box -->
+            <div class="pdf-upload-box">
+              <div class="pdf-upload-label">
+                📎 Or upload a PDF answer
+              </div>
+              <input type="file"
+                     class="pdf-input"
+                     name="pdf_{{ q['id'] }}"
+                     id="pdf-{{ loop.index0 }}"
+                     accept=".pdf"
+                     onchange="handlePdfUpload(this, {{ loop.index0 }})">
+              <div class="pdf-upload-hint" id="pdf-hint-{{ loop.index0 }}">
+                Upload a PDF if you prefer — if a PDF is uploaded, it will be used as your answer and the text box above will be ignored.
+              </div>
+            </div>
+
           </div>
           {% endif %}
 
@@ -631,9 +684,37 @@ const qMeta = [
 let cur = 0;
 let submitting = false;
 
+// Track which subjective questions have a PDF selected
+const pdfSelected = {};
+
+// ✅ PDF Upload Handler
+function handlePdfUpload(input, idx) {
+  const textarea = document.getElementById('ta-' + idx);
+  const hint = document.getElementById('pdf-hint-' + idx);
+
+  if (input.files && input.files.length > 0) {
+    const fileName = input.files[0].name;
+    // Disable textarea — PDF takes priority
+    textarea.disabled = true;
+    textarea.value = '';
+    pdfSelected[idx] = true;
+    hint.textContent = '✅ PDF selected: "' + fileName + '" — text box disabled. This PDF will be submitted as your answer.';
+    hint.className = 'pdf-upload-hint success';
+  } else {
+    // PDF removed — re-enable textarea
+    textarea.disabled = false;
+    pdfSelected[idx] = false;
+    hint.textContent = 'Upload a PDF if you prefer — if a PDF is uploaded, it will be used as your answer and the text box above will be ignored.';
+    hint.className = 'pdf-upload-hint';
+  }
+  refreshUI();
+}
+
 function isAnswered(i) {
   const m = qMeta[i];
   if (m.type === 'mcq') return !!document.querySelector(`input[name="${m.name}"]:checked`);
+  // subjective: answered if PDF selected OR textarea has text
+  if (pdfSelected[i]) return true;
   const el = document.querySelector(`textarea[name="${m.name}"]`);
   return el && el.value.trim().length > 0;
 }
@@ -803,7 +884,6 @@ function toggleMath(qIdx) {
   document.querySelectorAll('.math-popup.open').forEach(p => p.classList.remove('open'));
   if (!isOpen) {
     popup.classList.add('open');
-    // init grid if not yet built
     if (!activeTabs[qIdx]) {
       activeTabs[qIdx] = 'greek';
       buildGrid(qIdx, 'greek');
@@ -811,59 +891,46 @@ function toggleMath(qIdx) {
   }
 }
 
-// Insert symbol at cursor position in the textarea
 function insertSym(qIdx, sym) {
   const ta = document.getElementById('ta-' + qIdx);
-  if (!ta) return;
+  if (!ta || ta.disabled) return;
   ta.focus();
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   const before = ta.value.substring(0, start);
   const after = ta.value.substring(end);
   ta.value = before + sym + after;
-  // move cursor after inserted symbol
   const newPos = start + sym.length;
   ta.setSelectionRange(newPos, newPos);
-  // trigger input event so answered state updates
   ta.dispatchEvent(new Event('input'));
 }
 
-/* ============================= */
-/* ✅ DRAGGABLE MATH POPUP FIXED */
-/* ============================= */
-
+// ── DRAGGABLE MATH POPUP ──
 let activePopup = null;
 let offsetX = 0;
 let offsetY = 0;
 
-// start drag
 document.querySelectorAll('.math-popup-header').forEach(header => {
   header.addEventListener('mousedown', function(e) {
     activePopup = this.parentElement;
-
     const rect = activePopup.getBoundingClientRect();
-
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
-
     document.body.style.userSelect = 'none';
   });
 });
 
-// dragging
 document.addEventListener('mousemove', function(e) {
   if (!activePopup) return;
-
   activePopup.style.left = (e.clientX - offsetX) + 'px';
   activePopup.style.top = (e.clientY - offsetY) + 'px';
 });
 
-// stop drag
 document.addEventListener('mouseup', function() {
   activePopup = null;
   document.body.style.userSelect = '';
 });
-// Close math popup when clicking outside
+
 document.addEventListener('click', e => {
   if (!e.target.closest('.subj-wrapper')) {
     document.querySelectorAll('.math-popup.open').forEach(p => p.classList.remove('open'));
