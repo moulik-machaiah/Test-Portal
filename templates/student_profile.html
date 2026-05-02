@@ -12,7 +12,7 @@
 
     <!-- Profile Photo -->
     <div>
-      <img src="{{ url_for('static', filename=user_data['photo']) if user_data['photo'] else url_for('static', filename='uploads/default.png') }}" 
+      <img src="{{ user_data['photo'] if user_data['photo'] else 'https://ui-avatars.com/api/?name=' + user_data['name'] + '&background=4f8ef7&color=fff&size=120' }}" 
      alt="Profile"
      style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
     </div>
