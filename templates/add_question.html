@@ -139,7 +139,7 @@
       <div class="q-text">
         <div class="q-question">
           {{ loop.index }}. {% if q['question'] %}{{ q['question'] }}{% endif %}
-          {% if q['question_image'] %}<img class="q-thumb" src="/static/{{ q['question_image'] }}" alt="img">{% endif %}
+          {% if q['question_image'] %}<img class="q-thumb" src="{{ q['question_image'] }}" alt="img">{% endif %}
         </div>
         <div class="q-meta">
           <span class="chip {% if q['type'] == 'mcq' %}chip-mcq{% else %}chip-subj{% endif %}">{{ q['type'] }}</span>
