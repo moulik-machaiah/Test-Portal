@@ -1,16 +1,20 @@
 from flask import Flask, render_template, request, redirect, session, send_from_directory
 import psycopg2
 import os
-import uuid
-from werkzeug.utils import secure_filename
+import cloudinary
+import cloudinary.uploader
 from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 app.secret_key = "secret_key_change_in_production"
 
-
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# ── CLOUDINARY CONFIG ──────────────────────────────────────────────────────
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 ALLOWED_PDF_EXT = {"pdf"}
@@ -18,27 +22,31 @@ ALLOWED_PDF_EXT = {"pdf"}
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
-
 def save_upload(file_field):
-    """Save an uploaded image; return relative path or None."""
+    """Upload an image to Cloudinary; return the secure URL or None."""
     f = request.files.get(file_field)
     if f and f.filename and allowed_file(f.filename):
-        ext = f.filename.rsplit(".", 1)[1].lower()
-        name = f"{uuid.uuid4().hex}.{ext}"
-        f.save(os.path.join(UPLOAD_DIR, name))
-        return f"uploads/{name}"
+        result = cloudinary.uploader.upload(
+            f,
+            folder="testportal/images",
+            resource_type="image"
+        )
+        return result["secure_url"]
     return None
 
 def allowed_pdf(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_PDF_EXT
 
 def save_pdf_upload(file_field):
-    """Save an uploaded PDF answer; return relative path or None."""
+    """Upload a PDF to Cloudinary; return the secure URL or None."""
     f = request.files.get(file_field)
     if f and f.filename and allowed_pdf(f.filename):
-        name = f"{uuid.uuid4().hex}.pdf"
-        f.save(os.path.join(UPLOAD_DIR, name))
-        return f"uploads/{name}"
+        result = cloudinary.uploader.upload(
+            f,
+            folder="testportal/pdfs",
+            resource_type="raw"
+        )
+        return result["secure_url"]
     return None
 
 def get_db():
