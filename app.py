@@ -104,12 +104,13 @@ def init_db():
     );
     """)
 
-    # create admin if not exists
+    # BUG FIX #1: Changed WHERE NOT EXISTS check from 'admin' to 'Moulik'
+    # so it correctly matches the username being inserted
     cur.execute("""
     INSERT INTO users(username,password,role,name)
     SELECT 'Moulik','admin','admin','Admin'
     WHERE NOT EXISTS (
-        SELECT 1 FROM users WHERE username='admin'
+        SELECT 1 FROM users WHERE username='Moulik'
     );
     """)
 
@@ -559,6 +560,7 @@ def submit(exam_id):
     )
     questions = cur.fetchall()
 
+    # BUG FIX #2: Removed duplicate INSERT block — each response is now inserted only once
     for q in questions:
         qid     = q["id"]
         correct = q["correct_answer"]
@@ -566,22 +568,15 @@ def submit(exam_id):
         qtype   = q["type"]
         ans     = request.form.get(f"q{qid}", "").strip()
         score   = 0
+
         if qtype == "subjective":
-        # Check for PDF upload first; fall back to text answer
+            # Check for PDF upload first; fall back to text answer
             pdf_path = save_pdf_upload(f"pdf_{qid}")
             if pdf_path:
                 ans = pdf_path  # store the path as the answer
         elif qtype == "mcq" and ans == correct:
             score = int(marks)
 
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO responses(student, question_id, answer, marks) VALUES (%s,%s,%s,%s)",
-            (student, qid, ans, score)
-        )
-        
-        if qtype == "mcq" and ans == correct:
-            score = int(marks)
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO responses(student, question_id, answer, marks) VALUES (%s,%s,%s,%s)",
