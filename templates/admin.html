@@ -126,7 +126,8 @@
         <a class="btn btn-sm" style="background:rgba(124,95,247,.12);color:var(--accent2);border:1px solid rgba(124,95,247,.2)"
            href="/view_responses?exam_id={{ e['id'] }}">Responses</a>
         <form method="POST" action="/delete_exam/{{ e['id'] }}" style="margin:0"
-              onsubmit="return confirm('Delete exam &quot;{{ e[\'title\'] }}&quot;?\n\nThis will permanently delete all questions and student results for this exam.')">
+              onsubmit="return confirmDelete(this, 'exam')">
+          <input type="hidden" name="item_name" value="{{ e['title'] }}">
           <button class="btn-danger" type="submit">Delete</button>
         </form>
       </div>
@@ -156,7 +157,8 @@
         </div>
       </div>
       <form method="POST" action="/delete_student/{{ s['id'] }}" style="margin:0"
-            onsubmit="return confirm('Delete student \'{{ s['name'] | replace(\"'\", \"\\\\'\") }}\'?\n\nThis will also permanently remove all their exam responses and results.')">
+            onsubmit="return confirmDelete(this, 'student')">
+        <input type="hidden" name="item_name" value="{{ s['name'] }}">
         <button class="btn-danger" type="submit">Delete</button>
       </form>
     </div>
@@ -170,3 +172,13 @@
 
 </div>
 {% endblock %}
+
+<script>
+function confirmDelete(form, type) {
+  var name = form.querySelector('[name="item_name"]').value;
+  var msg = type === 'exam'
+    ? 'Delete exam "' + name + '"?\n\nThis will permanently delete all questions and student results for this exam.'
+    : 'Delete student "' + name + '"?\n\nThis will also permanently remove all their exam responses and results.';
+  return confirm(msg);
+}
+</script>
