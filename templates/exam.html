@@ -3,7 +3,7 @@
 {% block extra_head %}
 <style>
 /* Full-screen exam — hide nav, lock body */
-body { height: 100vh; }
+body { overflow: hidden; height: 100vh; }
 nav { display: none; }
 
 /* ── TOPBAR ── */
@@ -511,7 +511,7 @@ input[type=file].pdf-input::-webkit-file-upload-button {
           {% endif %}
           {% if q['question_image'] %}
           <div class="q-img-box">
-            <img src="/static/{{ q['question_image'] }}" alt="Question image">
+            <img src="{{ q['question_image'] }}" alt="Question image">
           </div>
           {% endif %}
 
@@ -528,7 +528,7 @@ input[type=file].pdf-input::-webkit-file-upload-button {
                 <span class="opt-key">{{ key }}</span>
                 <span class="opt-content">
                   {% if text %}<span>{{ text }}</span>{% endif %}
-                  {% if img %}<img class="opt-img" src="/static/{{ img }}" alt="">{% endif %}
+                  {% if img %}<img class="opt-img" src="{{ img }}" alt="">{% endif %}
                 </span>
               </label>
             </div>
