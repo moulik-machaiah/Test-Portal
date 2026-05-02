@@ -13,7 +13,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
-
+ALLOWED_PDF_EXT = {"pdf"}
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
@@ -29,6 +29,17 @@ def save_upload(file_field):
         return f"uploads/{name}"
     return None
 
+def allowed_pdf(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_PDF_EXT
+
+def save_pdf_upload(file_field):
+    """Save an uploaded PDF answer; return relative path or None."""
+    f = request.files.get(file_field)
+    if f and f.filename and allowed_pdf(f.filename):
+        name = f"{uuid.uuid4().hex}.pdf"
+        f.save(os.path.join(UPLOAD_DIR, name))
+        return f"uploads/{name}"
+    return None
 
 def get_db():
     return psycopg2.connect(
@@ -161,8 +172,10 @@ def admin():
     cur = conn.cursor()
     cur.execute("SELECT * FROM exams ORDER BY id DESC")
     exams = cur.fetchall()
+    cur.execute("SELECT * FROM users WHERE role='student' ORDER BY name")
+    students = cur.fetchall()
     conn.close()
-    return render_template("admin.html", exams=exams, user=session["user"])
+    return render_template("admin.html", exams=exams, students=students, user=session["user"])
 
 @app.route("/student/profile")
 @login_required(role="student")
@@ -212,6 +225,22 @@ def add_student():
 
     return render_template("add_student.html", user=session["user"])
 
+@app.route("/delete_student/<int:student_id>", methods=["POST"])
+@login_required(role="admin")
+def delete_student(student_id):
+    conn = get_db()
+    cur = conn.cursor()
+    # Delete their responses first (FK integrity)
+    cur.execute("""
+        DELETE FROM responses WHERE student = (
+            SELECT username FROM users WHERE id=%s
+        )
+    """, (student_id,))
+    cur.execute("DELETE FROM users WHERE id=%s AND role='student'", (student_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
+
 @app.route("/create_exam", methods=["POST"])
 @login_required(role="admin")
 def create_exam():
@@ -226,6 +255,24 @@ def create_exam():
     conn.close()
     return redirect("/admin")
 
+@app.route("/delete_exam/<int:exam_id>", methods=["POST"])
+@login_required(role="admin")
+def delete_exam(exam_id):
+    conn = get_db()
+    cur = conn.cursor()
+    # Delete responses for all questions in this exam
+    cur.execute("""
+        DELETE FROM responses WHERE question_id IN (
+            SELECT id FROM questions WHERE exam_id=%s
+        )
+    """, (exam_id,))
+    # Delete questions
+    cur.execute("DELETE FROM questions WHERE exam_id=%s", (exam_id,))
+    # Delete the exam
+    cur.execute("DELETE FROM exams WHERE id=%s", (exam_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
 
 @app.route("/add_question", methods=["GET", "POST"])
 @login_required(role="admin")
@@ -519,6 +566,20 @@ def submit(exam_id):
         qtype   = q["type"]
         ans     = request.form.get(f"q{qid}", "").strip()
         score   = 0
+        if qtype == "subjective":
+        # Check for PDF upload first; fall back to text answer
+            pdf_path = save_pdf_upload(f"pdf_{qid}")
+            if pdf_path:
+                ans = pdf_path  # store the path as the answer
+        elif qtype == "mcq" and ans == correct:
+            score = int(marks)
+
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO responses(student, question_id, answer, marks) VALUES (%s,%s,%s,%s)",
+            (student, qid, ans, score)
+        )
+        
         if qtype == "mcq" and ans == correct:
             score = int(marks)
         cur = conn.cursor()
