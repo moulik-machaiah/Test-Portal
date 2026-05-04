@@ -29,7 +29,7 @@ def save_upload(file_field):
         result = cloudinary.uploader.upload(
             f,
             folder="testportal/images",
-            resource_type="image"
+            resource_type="image",
             format="pdf"
         )
         return result["secure_url"]
