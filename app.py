@@ -44,7 +44,7 @@ def save_pdf_upload(file_field):
         result = cloudinary.uploader.upload(
             f,
             folder="testportal/pdfs",
-            resource_type="raw",
+            resource_type="auto",
             format="pdf"
         )
         return result["secure_url"]
