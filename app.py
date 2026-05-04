@@ -29,8 +29,7 @@ def save_upload(file_field):
         result = cloudinary.uploader.upload(
             f,
             folder="testportal/images",
-            resource_type="image",
-            format="pdf"
+            resource_type="image"
         )
         return result["secure_url"]
     return None
@@ -45,7 +44,8 @@ def save_pdf_upload(file_field):
         result = cloudinary.uploader.upload(
             f,
             folder="testportal/pdfs",
-            resource_type="raw"
+            resource_type="raw",
+            format="pdf"
         )
         return result["secure_url"]
     return None
