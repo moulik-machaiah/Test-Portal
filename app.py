@@ -30,6 +30,7 @@ def save_upload(file_field):
             f,
             folder="testportal/images",
             resource_type="image"
+            format="pdf"
         )
         return result["secure_url"]
     return None
