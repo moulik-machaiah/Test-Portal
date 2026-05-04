@@ -141,7 +141,7 @@
     {% else %}
     <div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">Student's answer:</div>
     {% if row['answer'] and (row['answer'].startswith('http') and row['answer'].endswith('.pdf')) %}
-      <a href="{{ row['answer'] }}" target="_blank"
+      <a href="https://docs.google.com/viewer?url={{ row['answer'] | urlencode }}&embedded=false" target="_blank"
          style="display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:7px;
             background:rgba(124,95,247,.12);color:#7c5ff7;border:1px solid rgba(124,95,247,.25);font-size:.85rem;text-decoration:none">
       📄 View PDF Answer
