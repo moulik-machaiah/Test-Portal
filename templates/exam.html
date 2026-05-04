@@ -940,5 +940,21 @@ document.addEventListener('click', e => {
 
 // Init
 refreshUI();
+
+// ── PREVENT BACK BUTTON & ACCIDENTAL NAVIGATION ──
+// Push a fake state so the back button hits it first
+history.pushState(null, '', window.location.href);
+window.addEventListener('popstate', function() {
+  // Every time they try to go back, push forward again
+  history.pushState(null, '', window.location.href);
+  alert('⚠️ You cannot go back during an exam!\n\nPlease use the question navigation on the right side to move between questions.');
+});
+
+// Warn if they try to close tab / refresh
+window.addEventListener('beforeunload', function(e) {
+  e.preventDefault();
+  e.returnValue = 'Your exam is in progress. If you leave, your answers may be lost!';
+  return e.returnValue;
+});
 </script>
 {% endblock %}
