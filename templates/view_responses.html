@@ -109,7 +109,7 @@
 
     <div class="q-body">
       {% if row['question'] %}{{ row['question'] }}{% endif %}
-      {% if row['question_image'] %}<br><img class="q-img" src="{{ row['question_image'] }}" alt="Question">{% endif %}
+      {% if row['question_image'] %}<br><img class="q-img" src="/static/{{ row['question_image'] }}" alt="Question">{% endif %}
     </div>
 
     {% if row['type'] == 'mcq' %}
@@ -126,7 +126,7 @@
         {% endif %}">
         <strong>{{ key }}:</strong>
         {% if text %}{{ text }}{% endif %}
-        {% if img %}<img src="{{ img }}" style="height:18px;vertical-align:middle">{% endif %}
+        {% if img %}<img src="/static/{{ img }}" style="height:18px;vertical-align:middle">{% endif %}
         {% if key == row['correct_answer'] %} ✓{% endif %}
         {% if row['answer'] == key %} ← student{% endif %}
       </span>
@@ -140,8 +140,8 @@
 
     {% else %}
     <div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">Student's answer:</div>
-    {% if row['answer'] and (row['answer'].startswith('http') and row['answer'].endswith('.pdf')) %}
-      <a href="https://docs.google.com/viewer?url={{ row['answer'] | urlencode }}&embedded=false" target="_blank"
+    {% if row['answer'] and row['answer'].startswith('uploads/') and row['answer'].endswith('.pdf') %}
+      <a href="/static/{{ row['answer'] }}" target="_blank"
          style="display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:7px;
             background:rgba(124,95,247,.12);color:#7c5ff7;border:1px solid rgba(124,95,247,.25);font-size:.85rem;text-decoration:none">
       📄 View PDF Answer
