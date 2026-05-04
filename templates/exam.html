@@ -787,7 +787,7 @@ document.addEventListener('visibilitychange', () => {
   if (submitting) return;
   if (document.hidden) {
     warns++;
-    if (warns === 3) alert('⚠ Warning: Do not switch tabs! 4 total violation will auto-submit.');
+    if (warns < 4) alert('⚠ Warning ${warns}/3: Do not switch tabs! one more violation will auto-submit.');
     else { submitting = true; alert('Exam auto-submitted due to tab switching.'); document.getElementById('examForm').submit(); }
   }
 });
