@@ -950,8 +950,17 @@ window.addEventListener('popstate', function() {
   alert('⚠️ You cannot go back during an exam!\n\nPlease use the question navigation on the right side to move between questions.');
 });
 
-// Warn if they try to close tab / refresh
+// Track whether the exam is being intentionally submitted
+let examSubmitting = false;
+
+// Mark as submitting when the form is submitted so beforeunload doesn't fire
+document.getElementById('examForm').addEventListener('submit', function() {
+  examSubmitting = true;
+});
+
+// Warn if they try to close tab / refresh (but NOT on submit)
 window.addEventListener('beforeunload', function(e) {
+  if (examSubmitting) return;
   e.preventDefault();
   e.returnValue = 'Your exam is in progress. If you leave, your answers may be lost!';
   return e.returnValue;
